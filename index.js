@@ -233,7 +233,7 @@ bot.on('text', async (ctx, next) => {
         ctx.session.truckData.phone = text;
         ctx.session.truckData.userId = userId;
         ctx.session.truckData.status = 'active';
-        ctx.session.truckData.rentedCount = 0; 
+        ctx.session.truckData.rentedCount = 0; // 🔥 አዲስ መኪና ሲመዘገብ መጀመሪያ 0 መሆኑን ማረጋገጫ
         
         await TruckLeasor.findOneAndUpdate(
             { userId: userId, plate: ctx.session.truckData.plate }, 
@@ -255,18 +255,19 @@ bot.on('text', async (ctx, next) => {
         const cleanRoute = ctx.session.rentTruck.route.toLowerCase();
         let searchRegex = (cleanRoute.includes("gondar") || cleanRoute.includes("ጎንደር")) ? new RegExp("(gondar|ጎንደር)", "i") : new RegExp(ctx.session.rentTruck.route, "i");
 
-        // 🔥 1. እዚህ ጋር በትንሹ የታዘዘውን መኪና በመምረጥ ፍትሃዊ (Fair) የስራ ክፍፍል ያደርጋል (.sort({ rentedCount: 1 }))
+        // 🔥 ማሻሻያ፦ rentedCount ከዚህ በፊት ባዶ የነበሩትንም ጭምር በየተራ ፍትሃዊ በሆነ መንገድ እንዲያፈራርቅ ተደርጓል
         const foundTruck = await TruckLeasor.findOne({ 
             type: new RegExp(ctx.session.rentTruck.type, 'i'),
             route: searchRegex, 
             status: 'active' 
-        }).sort({ rentedCount: 1 });
+        }).sort({ rentedCount: 1, _id: 1 }); // በ rentedCount እኩል ከሆኑ በ ID ቅደም ተከተል ያፈራርቃቸዋል
 
         if (foundTruck) {
             ctx.reply(`የሚፈልጉት መኪና ይገኛል!\nየመኪናው አይነት፡ ${foundTruck.type}\nታርጋ ቁጥር፡ ${foundTruck.plate}\nለማዘዝ በ 0960336138 ይደውሉልን`);
             
-            // 🔥 2. የተመረጠው መኪና የስራ ቆጣሪው በ 1 ከፍ ይላል፤ በሚቀጥለው ጊዜ ሌላኛው መኪና ቅድሚያ እንዲያገኝ
-            await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $inc: { rentedCount: 1 } });
+            // ቆጣሪውን በ 1 ከፍ ማድረግ (ቀጣይ ፍለጋ ላይ ሌላኛው መኪና ቅድሚያ እንዲያገኝ)
+            const currentCount = foundTruck.rentedCount || 0;
+            await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $set: { rentedCount: currentCount + 1 } });
         } else {
             ctx.reply('በዚህ የጉዞ መስመር የሚጓዝ መኪና መረጃ እስካሁን አልደረሰንም መረጃው እንደደረሰን እንደውላለን');
         }
@@ -443,7 +444,7 @@ bot.action('adm_manage_steel', async (ctx) => {
 // --- 🔥 የተስተካከሉ የማጥፊያ ተግባራት (Fix CastError Regex) ---
 bot.action(/^del_cem_(.+)$/, async (ctx) => {
     try {
-        await CementSeller.findByIdAndDelete(ctx.match[1]);
+        await CementSeller.findByIdAndDelete(ctx.match);
         ctx.reply('🧱 የሲሚንቶ መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
     } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
     ctx.answerCbQuery();
@@ -451,7 +452,7 @@ bot.action(/^del_cem_(.+)$/, async (ctx) => {
 
 bot.action(/^del_trk_(.+)$/, async (ctx) => {
     try {
-        await TruckLeasor.findByIdAndDelete(ctx.match[1]);
+        await TruckLeasor.findByIdAndDelete(ctx.match);
         ctx.reply('🚚 የመኪናው መረጃ ከዳታቤዝ ላይ ተሰርዟል!');
     } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
     ctx.answerCbQuery();
@@ -459,7 +460,7 @@ bot.action(/^del_trk_(.+)$/, async (ctx) => {
 
 bot.action(/^del_stl_(.+)$/, async (ctx) => {
     try {
-        await SteelSeller.findByIdAndDelete(ctx.match[1]);
+        await SteelSeller.findByIdAndDelete(ctx.match);
         ctx.reply('🟥 የብረት መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
     } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
     ctx.answerCbQuery();
