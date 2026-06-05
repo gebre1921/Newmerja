@@ -1,7 +1,6 @@
 const { Telegraf, Markup } = require('telegraf');
 const http = require('http');
 const mongoose = require('mongoose');
-const { MongooseSession } = require('telegraf-session-mongoose');
 
 // --- 🛠️ የቶክን ማጽጃ ክፍል ---
 const rawToken = process.env.BOT_TOKEN;
@@ -33,19 +32,34 @@ const TruckLeasor = mongoose.model('TruckLeasor', {
     rentedCount: { type: Number, default: 0 } 
 });
 
+// 🔥 ፊክስ፦ የሰዎችን ሴሽን ዳታቤዝ ላይ በቋሚነት ራሳችን የምናስቀምጥበት ሞዴል
+const BotSession = mongoose.model('BotSession', {
+    key: { type: String, required: true, unique: true }, // 'userId:userId' በሚል መልክ ይቀመጣል
+    data: { type: Object, default: {} }
+});
+
 const bot = new Telegraf(BOT_TOKEN);
 
-// 🔥 ፊክስ፦ የሰዎችን መረጃ ዳታቤዝ ውስጥ በቋሚነት ለማስቀመጥ የ Mongoose Session እንጠቀማለን
-const session = new MongooseSession({
-    collection: 'sessions', // በዳታቤዝህ ላይ 'sessions' የሚል አዲስ ሰንጠረዥ በራሱ ይፈጥራል
-    mongoose: mongoose
-});
-bot.use(session.middleware());
-
-// 🔥 ፊክስ፦ የትኛውም ተጠቃሚ በተን ሲነካ ሴሽኑ እንዳይበላሽ የሚያረጋግጥ Middleware
-bot.use((ctx, next) => {
-    ctx.session = ctx.session || {};
-    return next();
+// 🔥 🔥 ፊክስ፦ የሴሽን መደባለቅን ለአንዴና ለመጨረሻ ጊዜ የሚፈታው Custom MongoDB Session Middleware
+bot.use(async (ctx, next) => {
+    if (!ctx.from) return next();
+    
+    const sessionKey = `${ctx.from.id}:${ctx.from.id}`;
+    
+    // 1. የዚህን ተጠቃሚ ሴሽን ከዳታቤዝ መፈለግ
+    let sessionDoc = await BotSession.findOne({ key: sessionKey });
+    if (!sessionDoc) {
+        sessionDoc = await BotSession.create({ key: sessionKey, data: {} });
+    }
+    
+    // ctx.session ን ከዳታቤዙ ዳታ ጋር ማገናኘት
+    ctx.session = sessionDoc.data || {};
+    
+    // 2. ቀጣዮቹን ስራዎች ማሰራት
+    await next();
+    
+    // 3. ቦቱ ስራውን ሲጨርስ የተለወጠውን ሴሽን መልሶ ዳታቤዝ ላይ ሴቭ ማድረግ
+    await BotSession.updateOne({ key: sessionKey }, { $set: { data: ctx.session } });
 });
 
 // --- ⌨️ ዋና ሜኑ ---
@@ -88,7 +102,6 @@ const cementSellerInline = Markup.inlineKeyboard([
 ]);
 
 bot.hears('🧱 ሲሚንቶ ለመሸጥ', async (ctx) => {
-    ctx.session = ctx.session || {};
     ctx.session.action = null; 
     const existing = await CementSeller.findOne({ userId: ctx.from.id });
     if (existing) {
@@ -100,14 +113,12 @@ bot.hears('🧱 ሲሚንቶ ለመሸጥ', async (ctx) => {
 });
 
 bot.hears('🧱 ሲሚንቶ ለመግዛት', (ctx) => {
-    ctx.session = ctx.session || {};
     ctx.session.action = 'BUY_CEMENT_1';
     ctx.reply('1. ምን አይነት ሲሚንቶ ነው የሚፈልጉት?');
 });
 
 // --- 🚚 መኪና ክፍል ---
 bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
-    ctx.session = ctx.session || {};
     ctx.session.action = null;
     const myTrucks = await TruckLeasor.find({ userId: ctx.from.id });
     
@@ -140,7 +151,6 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
 });
 
 bot.hears('🚚 መኪና ለመከራየት', (ctx) => {
-    ctx.session = ctx.session || {};
     ctx.session.action = 'RENT_TRUCK_1';
     ctx.reply('1. ምን አይነት መኪና ይፈልጋሉ?');
 });
@@ -152,7 +162,6 @@ const steelSellerInline = Markup.inlineKeyboard([
 ]);
 
 bot.hears('🟥 ብረት ለመሸጥ', async (ctx) => {
-    ctx.session = ctx.session || {};
     ctx.session.action = null;
     const existing = await SteelSeller.findOne({ userId: ctx.from.id });
     if (existing) {
@@ -164,7 +173,6 @@ bot.hears('🟥 ብረት ለመሸጥ', async (ctx) => {
 });
 
 bot.hears('🟥 ብረት ለመግዛት', (ctx) => {
-    ctx.session = ctx.session || {};
     ctx.session.action = 'BUY_STEEL_1';
     ctx.reply('1. ምን አይነት ብረት ይፈልጋሉ?');
 });
@@ -175,7 +183,6 @@ const machineryLeasorInline = Markup.inlineKeyboard([
 ]);
 
 bot.hears('🔹 ማሽነሪ ለማከራየት', async (ctx) => {
-    ctx.session = ctx.session || {};
     ctx.session.action = null;
     const existing = await MachineryLeasor.findOne({ userId: ctx.from.id });
     if (existing) {
@@ -187,7 +194,6 @@ bot.hears('🔹 ማሽነሪ ለማከራየት', async (ctx) => {
 });
 
 bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
-    ctx.session = ctx.session || {};
     ctx.session.action = 'RENT_MACHINERY_1';
     ctx.reply('1. የሚፈልጉት የማሽነሪ አይነት ያስገቡ፡');
 });
@@ -206,7 +212,6 @@ function createSearchRegex(input) {
 
 // --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ (Text Handler) ---
 bot.on('text', async (ctx, next) => {
-    ctx.session = ctx.session || {};
     const text = ctx.message.text;
     
     if (text.startsWith('/')) {
@@ -599,7 +604,7 @@ http.createServer((req, res) => {
 }).listen(PORT);
 
 bot.telegram.deleteWebhook({ drop_pending_updates: true }).then(() => {
-    bot.launch().then(() => console.log('ቦቱ ከግጭት ነፃ በሆነ መልኩ በተሳካ ሁኔታ ተነስቷል!'));
+    bot.launch().then(() => console.log('ቦቱ ያለ ምንም ጥቅል ጥገኝነት እና ከግጭት ነፃ በሆነ መልኩ ተነስቷል!'));
 });
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
