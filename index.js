@@ -23,7 +23,7 @@ mongoose.connect(MONGO_URI)
 // --- 📊 የዳታቤዝ ሰንጠረዦች መዋቅር (Database Models) ---
 const CementSeller = mongoose.model('CementSeller', { userId: Number, type: String, location: String, companyName: String, phone: String, price: Number, status: String });
 
-// 🚚 ማሻሻያ፡ ለእያንዳንዱ መኪና 'rentedCount' (የተከራየበት ብዛት) ጨምረናል
+// 🚚 መዋቅር፦ ለእያንዳንዱ መኪና 'rentedCount' (የተከራየበት ብዛት) አብሮ ይይዛል
 const TruckLeasor = mongoose.model('TruckLeasor', { 
     userId: Number, 
     type: String, 
@@ -31,7 +31,7 @@ const TruckLeasor = mongoose.model('TruckLeasor', {
     route: String, 
     phone: String, 
     status: String,
-    rentedCount: { type: Number, default: 0 } // አዲስ የተጨመረ የፍትሃዊነት መቆጣጠሪያ
+    rentedCount: { type: Number, default: 0 } 
 });
 
 const SteelSeller = mongoose.model('SteelSeller', { userId: Number, type: String, address: String, phone: String, price: String, status: String });
@@ -59,9 +59,11 @@ const cementSellerInline = Markup.inlineKeyboard([
     [Markup.button.callback('➕ አዲስ ለመመዝገብ', 'cement_re_reg'), Markup.button.callback('💰 ዋጋ ለማሻሻል', 'cement_update_price')]
 ]);
 
+// 🚚 ማሻሻያ፦ የመኪና ባለቤቶች የራሳቸውን መኪና ብቻ የሚሰርዙበት በተን ተጨምሯል
 const truckLeasorInline = Markup.inlineKeyboard([
     [Markup.button.callback('✅ አለ', 'truck_active'), Markup.button.callback('❌ የለም', 'truck_off')],
-    [Markup.button.callback('🔄 የጉዞ መስመር ለመቀየር', 'truck_change_route')]
+    [Markup.button.callback('🔄 የጉዞ መስመር ለመቀየር', 'truck_change_route')],
+    [Markup.button.callback('🗑️ መኪናዬን ሙሉ በሙሉ ሰርዝ', 'truck_delete_own')]
 ]);
 
 const steelSellerInline = Markup.inlineKeyboard([
@@ -208,7 +210,7 @@ bot.on('text', async (ctx) => {
         ctx.session.truckData.phone = text;
         ctx.session.truckData.userId = userId;
         ctx.session.truckData.status = 'active';
-        ctx.session.truckData.rentedCount = 0; // መጀመሪያ ሲመዘገብ 0 ነው
+        ctx.session.truckData.rentedCount = 0; 
         await TruckLeasor.findOneAndUpdate({ userId }, ctx.session.truckData, { upsert: true });
         ctx.session.action = null;
         ctx.reply('መረጃዎ በትክክል ደርሶናል ፈላጊ ሲኖር እንደውልለዎታለን', truckLeasorInline);
@@ -218,8 +220,6 @@ bot.on('text', async (ctx) => {
         ctx.reply(`የጉዞ መስመርዎ ወደ "${text}" ተቀይሯል!`);
         ctx.session.action = null;
     }
-    
-    // 🚚 ማሻሻያ፡ መኪና ለመከራየት ፍለጋ ላይ ፍትሃዊ የ"Round-Robin" ተራ ዘዴ ተተክሏል
     else if (action === 'RENT_TRUCK_1') {
         ctx.session.rentTruck = { type: text };
         ctx.session.action = 'RENT_TRUCK_2';
@@ -229,8 +229,6 @@ bot.on('text', async (ctx) => {
         ctx.session.action = 'RENT_TRUCK_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'RENT_TRUCK_3') {
-        
-        // 1. የገባውን የከተማ ጽሑፍ ከአማርኛ እና እንግሊዘኛ ቃላት ጋር አጣጥሞ ለመፈለግ RegExp ማዘጋጀት
         const cleanRoute = ctx.session.rentTruck.route.toLowerCase();
         let searchRegex;
         
@@ -240,19 +238,16 @@ bot.on('text', async (ctx) => {
             searchRegex = new RegExp(ctx.session.rentTruck.route, "i");
         }
 
-        // 2. ፍትሃዊ አሰራር፡ 'rentedCount: 1' ማለት በትንሹ የተከራየው መኪና መጀመሪያ ይመረጥ ማለት ነው
+        // ፍትሃዊ አሰራር፡ በትንሹ የተከራየውን መኪና ቅድሚያ ይሰጣል
         const foundTruck = await TruckLeasor.findOne({ 
             type: new RegExp(ctx.session.rentTruck.type, 'i'),
             route: searchRegex, 
             status: 'active' 
-        }).sort({ rentedCount: 1 }); // እዚህ ጋር በትንሹ የተከራየው ይመረጣል
+        }).sort({ rentedCount: 1 });
 
         if (foundTruck) {
             ctx.reply(`የሚፈልጉት መኪና ይገኛል!\nየመኪናው አይነት፡ ${foundTruck.type}\nታርጋ ቁጥር፡ ${foundTruck.plate}\nለማዘዝ በ 0960336138 ይደውሉልን`);
-            
-            // 3. የተመረጠው መኪና እድል ስላገኘ፣ የዳታቤዝ ቁጥሩን በ +1 እናሳድገዋለን (ለሚቀጥለው ሰው ተራው እንዲዞር)
             await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $inc: { rentedCount: 1 } });
-            
         } else {
             ctx.reply('በዚህ የጉዞ መስመር የሚጓዝ መኪና መረጃ እስካሁን አልደረሰንም መረጃው እንደደረሰን እንደውላለን');
         }
@@ -381,6 +376,17 @@ bot.action('truck_change_route', (ctx) => {
     ctx.answerCbQuery();
 });
 
+// 🗑️ አከራዩ የራሱን መኪና ብቻ መርጦ ከዳታቤዝ እንዲሰርዝ የሚያደርግ አሠራር
+bot.action('truck_delete_own', async (ctx) => {
+    const deletedCar = await TruckLeasor.findOneAndDelete({ userId: ctx.from.id });
+    if (deletedCar) {
+        ctx.reply(`ታርጋ ቁጥር "${deletedCar.plate}" የሆነው መኪናዎ ከሲስተሙ ላይ ሙሉ በሙሉ ተሰርዟል! 🗑️`);
+    } else {
+        ctx.reply('በዚህ አካውንት የተመዘገበ መኪና ዳታቤዝ ውስጥ አልተገኘም!');
+    }
+    ctx.answerCbQuery();
+});
+
 bot.action('steel_active', async (ctx) => {
     await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
     ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።');
@@ -406,6 +412,29 @@ bot.action('machinery_off', async (ctx) => {
     await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' });
     ctx.reply('ማሽነሪዎ [የለም] ተደርጓል።');
     ctx.answerCbQuery();
+});
+
+// --- 👑 የአድሚን ትዕዛዛት (Admin Commands) ---
+// ለአንተ ብቻ፡ ማንኛውንም መኪና በታርጋ ቁጥር መርጠህ ለመደለት የምትጠቀምበት ልዩ ትዕዛዝ
+bot.command('admin_delete', async (ctx) => {
+    if (ctx.from.id !== 7423347375) { 
+        return ctx.reply('ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!');
+    }
+
+    const messageText = ctx.message.text;
+    const plateNumber = messageText.split(' '); 
+
+    if (!plateNumber) {
+        return ctx.reply('እባክዎ የሚደለተውን መኪና ታርጋ ቁጥር አብረው ይጻፉ።\nምሳሌ፦ /admin_delete AA3B4567');
+    }
+
+    const deleted = await TruckLeasor.findOneAndDelete({ plate: new RegExp(plateNumber, 'i') });
+
+    if (deleted) {
+        ctx.reply(`👑 አድሚን፦ ታርጋ ቁጥር "${plateNumber}" የሆነው መኪና ከዳታቤዝ ላይ በግዳጅ ተሰርዟል! 🗑️`);
+    } else {
+        ctx.reply(`ይቅርታ፣ "${plateNumber}" የሚል ታርጋ ያለው መኪና ዳታቤዝ ውስጥ አልተገኘም!`);
+    }
 });
 
 // --- 🌐 Render ፖርት ማስከፈቻ የዌብ ሰርቨር ---
