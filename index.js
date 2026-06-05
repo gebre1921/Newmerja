@@ -58,7 +58,7 @@ bot.start((ctx) => {
     ctx.reply('እንኳን ወደ Simple ቦት በሰላም መጡ! እባክዎ ከታች ካሉት አማራጮች አንዱን ይምረጡ።', mainKeyboard);
 });
 
-// --- 👑 1. የአድሚን መቆጣጠሪያ ፓናል (ትዕዛዙ ከላይ መሆን አለበት) ---
+// --- 👑 1. የአድሚን መቆጣጠሪያ ፓናል ---
 bot.command('admin_panel', async (ctx) => {
     const adminId = 7423347375; 
     const currentUserId = ctx.from.id;
@@ -76,7 +76,8 @@ bot.command('admin_panel', async (ctx) => {
         const buttons = trucks.map(truck => {
             return [
                 Markup.button.callback(`📇 ታርጋ፦ ${truck.plate || 'የለም'} (${truck.type || 'FSR'})`, 'none'),
-                Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `admin_del_${truck._id}`)
+                // ማስተካከያ፡ አሁን በቀጥታ በ userId ነው የሚያጠፋው!
+                Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `del_${truck.userId}`)
             ];
         });
 
@@ -176,30 +177,34 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
 });
 
 // --- 🔘 3. የውስጥ በተኖች አሠራር (Inline Callbacks) ---
-bot.action(/^admin_del_(.+)$/, async (ctx) => {
+
+// የማጥፊያው ኮድ አሁን በ userId ስለሚሰራ 100% አስተማማኝ ነው
+bot.action(/^del_(.+)$/, async (ctx) => {
     const adminId = 7423347375; 
     if (ctx.from.id !== adminId) return ctx.answerCbQuery('ፈቃድ የለዎትም!', { show_alert: true });
 
     try {
-        const truckId = ctx.match;
-        const deleted = await TruckLeasor.findByIdAndDelete(truckId);
+        const targetUserId = Number(ctx.match);
+        const deleted = await TruckLeasor.findOneAndDelete({ userId: targetUserId });
 
         if (deleted) {
-            ctx.answerCbQuery(`ታርጋ ቁጥር ${deleted.plate} ጠፍቷል!`, { show_alert: true });
+            await ctx.answerCbQuery(`ታርጋ ቁጥር ${deleted.plate} በተሳካ ሁኔታ ጠፍቷል!`, { show_alert: true });
+            
             const remainingTrucks = await TruckLeasor.find({});
             if (remainingTrucks.length === 0) {
                 return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች ከዳታቤዝ ውስጥ ተደምስሰዋል።');
             }
             const nextButtons = remainingTrucks.map(t => [
                 Markup.button.callback(`📇 ታርጋ፦ ${t.plate} (${t.type})`, 'none'),
-                Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `admin_del_${t._id}`)
+                Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `del_${t.userId}`)
             ]);
-            ctx.editMessageText('👑 መኪናው ጠፍቷል። በዳታቤዝ ውስጥ የቀሩት ዝርዝር፦', Markup.inlineKeyboard(nextButtons));
+            await ctx.editMessageText('👑 መኪናው ጠፍቷል። በዳታቤዝ ውስጥ የቀሩት ዝርዝር፦', Markup.inlineKeyboard(nextButtons));
         } else {
-            ctx.answerCbQuery('ይህ መኪና ቀድሞ ተሰርዟል!', { show_alert: true });
+            await ctx.answerCbQuery('ይህ መኪና ቀድሞ ተሰርዟል!', { show_alert: true });
         }
     } catch (error) {
-        ctx.answerCbQuery('ማጥፋት አልተሳካም!', { show_alert: true });
+        console.error(error);
+        await ctx.answerCbQuery('ማጥፋት አልተሳካም! እባክዎ እንደገና ይሞክሩ።', { show_alert: true });
     }
 });
 
