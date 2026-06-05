@@ -2,7 +2,7 @@ const { Telegraf, Markup, session } = require('telegraf');
 const http = require('http');
 const mongoose = require('mongoose'); // ማነጎዲቢን ለማገናኘት
 
-// --- 🛠️ የቶክን ማጽጃ ክፍል ---
+// --- 🛠️ የቶክን ማጽጃ ክፍል (Render ላይ የሚፈጠርን ስህተት ለመከላከል) ---
 const rawToken = process.env.BOT_TOKEN;
 const BOT_TOKEN = rawToken ? rawToken.trim().replace(/['"]/g, '') : undefined;
 const MONGO_URI = process.env.MONGO_URI;
@@ -12,6 +12,7 @@ if (!BOT_TOKEN || !MONGO_URI) {
     process.exit(1);
 }
 
+// ቶክኑ በትክክል መነቡን በሎግ ላይ ለማረጋገጥ
 console.log(`-> ቶክኑ በተሳካ ሁኔታ ተነቧል! ርዝመት: ${BOT_TOKEN.length} ቁምፊዎች።`);
 
 // --- 🗄️ ከማንጎ ዲቢ (MongoDB) ጋር ማገናኛ ---
@@ -19,9 +20,10 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log("ማንጎ ዲቢ ዳታቤዝ በተሳካ ሁኔታ ተገናኝቷል!"))
     .catch(err => console.error("የዳታቤዝ ግንኙነት ስህተት:", err));
 
-// --- 📊 የዳታቤዝ ሰንጠረዦች መዋቅር ---
+// --- 📊 የዳታቤዝ ሰንጠረዦች መዋቅር (Database Models) ---
 const CementSeller = mongoose.model('CementSeller', { userId: Number, type: String, location: String, companyName: String, phone: String, price: Number, status: String });
 
+// 🚚 መዋቅር፦ ለእያንዳንዱ መኪና 'rentedCount' (የተከራየበት ብዛት) አብሮ ይይዛል
 const TruckLeasor = mongoose.model('TruckLeasor', { 
     userId: Number, 
     type: String, 
@@ -235,6 +237,7 @@ bot.on('text', async (ctx) => {
             searchRegex = new RegExp(ctx.session.rentTruck.route, "i");
         }
 
+        // ፍትሃዊ አሰራር፡ በትንሹ የተከራየውን መኪና ቅድሚያ ይሰጣል
         const foundTruck = await TruckLeasor.findOne({ 
             type: new RegExp(ctx.session.rentTruck.type, 'i'),
             route: searchRegex, 
@@ -334,7 +337,7 @@ bot.on('text', async (ctx) => {
     }
 });
 
-// --- 🔘 የውስጥ በተኖች አሠራር ---
+// --- 🔘 የውስጥ በተኖች አሠራር (Inline Callback Actions) ---
 bot.action('cement_active', async (ctx) => {
     await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
     ctx.reply('ሁኔታዎ ወደ [አለ] ተቀይሯል።');
@@ -399,60 +402,75 @@ bot.action('machinery_off', async (ctx) => {
     ctx.answerCbQuery();
 });
 
-// --- 👑 አዲሱ የአድሚን መቆጣጠሪያ ፓናል (Admin Dashboard) ---
+// --- 👑 የላቀ የአድሚን መቆጣጠሪያ ፓናል (Admin Dashboard) ---
 
-// 1. ሁሉንም መኪኖች በአዝራር (Inline Button) መልክ ለአንተ ብቻ የሚያመጣ ልዩ ትዕዛዝ
+// 1. ሁሉንም መኪኖች በአዝራር መልክ የሚያመጣ የአድሚን ትዕዛዝ
 bot.command('admin_panel', async (ctx) => {
-    if (ctx.from.id !== 7423347375) { 
-        return ctx.reply('ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!');
+    const adminId = 7423347375; // የእርስዎ የቴሌግራም ID
+    const currentUserId = ctx.from.id;
+
+    console.log(`-> የአድሚን ሙከራ ከ ID: ${currentUserId}`); // ለ Render ሎግ መቆጣጠሪያ እንዲረዳዎት
+
+    // የአይዲ ማረጋገጫ ማጣሪያ
+    if (currentUserId !== adminId) { 
+        return ctx.reply(`⛔ ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!\nየእርስዎ የአሁኑ ID: ${currentUserId}`);
     }
 
-    const trucks = await TruckLeasor.find({});
-    if (trucks.length === 0) {
-        return ctx.reply('👑 አድሚን፡ በዳታቤዝ ውስጥ የተመዘገበ ምንም መኪማ የለም።');
-    }
-
-    const buttons = trucks.map(truck => {
-        // ለእያንዳንዱ መኪና ታርጋውን እያሳየ አጠገቡ ላይ የ "X" ማጥፊያ ቁልፍ ያደርጋል
-        return [
-            Markup.button.callback(`🚚 ${truck.plate} (${truck.type})`, 'none'),
-            Markup.button.callback('❌ ሰርዝ', `admin_del_${truck._id}`)
-        ];
-    });
-
-    ctx.reply('👑 እንኳን ወደ አድሚን ማጥፊያ ፓናል በሰላም መጡ። ማጥፋት የሚፈልጉትን መኪና ❌ የሚለውን ይንኩ፡', Markup.inlineKeyboard(buttons));
-});
-
-// 2. የ "❌ ሰርዝ" በተን ሲነካ በቀጥታ ከማንጎ ዲቢ አጥፍቶ በተኖቹን የሚያድስ አሠራር
-bot.action(/^admin_del_(.+)$/, async (ctx) => {
-    if (ctx.from.id !== 7423347375) { 
-        return ctx.answerCbQuery('ፈቃድ የለዎትም!', { show_alert: true });
-    }
-
-    const truckId = ctx.match;
-    const deleted = await TruckLeasor.findByIdAndDelete(truckId);
-
-    if (deleted) {
-        ctx.answerCbQuery(`ታርጋ ${deleted.plate} ተሰርዟል!`, { show_alert: false });
-        
-        // ከተሰረዘ በኋላ የተረፉትን መኪኖች ዝርዝር በራሱ ጊዜ አድሶ ያሳያል
-        const remainingTrucks = await TruckLeasor.find({});
-        if (remainingTrucks.length === 0) {
-            return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች ከዳታቤዝ ላይ ተደምስሰዋል።');
+    try {
+        const trucks = await TruckLeasor.find({});
+        if (trucks.length === 0) {
+            return ctx.reply('👑 אድሚን፡ በአሁኑ ሰዓት በዳታቤዝ ውስጥ የተመዘገበ ምንም መኪና የለም።');
         }
 
-        const nextButtons = remainingTrucks.map(t => [
-            Markup.button.callback(`🚚 ${t.plate} (${t.type})`, 'none'),
-            Markup.button.callback('❌ ሰርዝ', `admin_del_${t._id}`)
-        ]);
+        const buttons = trucks.map(truck => {
+            return [
+                Markup.button.callback(`🚚 ${truck.plate || 'ታርጋ የሌለው'} (${truck.type || 'ያልታወቀ'})`, 'none'),
+                Markup.button.callback('❌ ሰርዝ', `admin_del_${truck._id}`)
+            ];
+        });
 
-        ctx.editMessageText('👑 መኪናው በተሳካ ሁኔታ ተሰርዟል። የቀሩት ዝርዝር፡', Markup.inlineKeyboard(nextButtons));
-    } else {
-        ctx.answerCbQuery('ይህ መኪና ቀድሞ ጠፍቷል!', { show_alert: true });
+        await ctx.reply('👑 እንኳን ወደ አድሚን ማጥፊያ ፓናል በሰላም መጡ። ማጥፋት የሚፈልጉትን መኪና ❌ የሚለውን ይንኩ፡', Markup.inlineKeyboard(buttons));
+    } catch (error) {
+        console.error("የአድሚን ፓናል ስህተት:", error);
+        ctx.reply("❌ መረጃዎችን ከዳታቤዝ ላይ በማምጣት ሂደት ላይ ስህተት አጋጥሟል።");
     }
 });
 
-// አዶሚኑ ምንም እንዳይፈጠር ዝም ብሎ ታርጋውን ሲነካ የሚዘጋ Callback
+// 2. የ "❌ ሰርዝ" በተን ሲነካ በቀጥታ ከማንጎ ዲቢ የሚያጠፋ
+bot.action(/^admin_del_(.+)$/, async (ctx) => {
+    const adminId = 7423347375; // የእርስዎ የቴሌግራም ID
+    if (ctx.from.id !== adminId) { 
+        return ctx.answerCbQuery('ይህንን ተግባር ለመፈጸም ፈቃድ የለዎትም!', { show_alert: true });
+    }
+
+    try {
+        const truckId = ctx.match;
+        const deleted = await TruckLeasor.findByIdAndDelete(truckId);
+
+        if (deleted) {
+            ctx.answerCbQuery(`ታርጋ ${deleted.plate} ተሰርዟል!`, { show_alert: false });
+            
+            const remainingTrucks = await TruckLeasor.find({});
+            if (remainingTrucks.length === 0) {
+                return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች ከዳታቤዝ ላይ ተደምስሰዋል።');
+            }
+
+            const nextButtons = remainingTrucks.map(t => [
+                Markup.button.callback(`🚚 ${t.plate} (${t.type})`, 'none'),
+                Markup.button.callback('❌ ሰርዝ', `admin_del_${t._id}`)
+            ]);
+
+            ctx.editMessageText('👑 መኪናው በተሳካ ሁኔታ ተሰርዟል። የቀሩት ዝርዝር፡', Markup.inlineKeyboard(nextButtons));
+        } else {
+            ctx.answerCbQuery('ይህ መኪና ቀድሞ ጠፍቷል!', { show_alert: true });
+        }
+    } catch (error) {
+        console.error("የስረዛ ስህተት:", error);
+        ctx.answerCbQuery('ስረዛው አልተሳካም!', { show_alert: true });
+    }
+});
+
+// አዶሚኑ ታርጋውን ሲነካ የሚዘጋ Callback
 bot.action('none', (ctx) => ctx.answerCbQuery());
 
 // --- 🌐 Render ፖርት ማስከፈቻ የዌብ ሰርቨር ---
