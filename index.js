@@ -33,13 +33,13 @@ const TruckLeasor = mongoose.model('TruckLeasor', {
 });
 
 const bot = new Telegraf(BOT_TOKEN);
+
+// 🔥 ፊክስ፦ የሴሽን አስተማማኝነትን ለማረጋገጥ መደበኛውን session እንጠቀማለን
 bot.use(session());
 
-// 🔥 የ Session መጥፋት ስህተትን (TypeError) መከላከያ Middleware
+// 🔥 ፊክስ፦ እያንዳንዱ ተጠቃሚ የራሱ ሴሽን በየኢንዴክሱ እንዲኖረው የሚያስገድድ Middleware
 bot.use((ctx, next) => {
-    if (!ctx.session) {
-        ctx.session = {};
-    }
+    ctx.session = ctx.session || {};
     return next();
 });
 
@@ -110,23 +110,18 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
         myTrucks.forEach(t => {
             const currentStatus = t.status === 'active' ? '🟢 ዝግጁ' : '🔴 ስራ ላይ';
             
-            // 1. የመኪናው መረጃ ርዕስ (ክሊክ የማይደረግ በተን)
             buttons.push([Markup.button.callback(`🇪🇹 ታርጋ፦ ${t.plate} | ${t.type} [${currentStatus}]`, 'none')]);
             
-            // 2. የሁኔታ መቀየሪያ በተኖች (ጎን ለጎን በአንድ መስመር እንዲያምር)
             buttons.push([
                 Markup.button.callback('✅ ዝግጁ አድርግ', `tr_act_${t._id}`),
                 Markup.button.callback('❌ ስራ ላይ አድርግ', `tr_off_${t._id}`)
             ]);
             
-            // 3. የጉዞ መስመር መቀየሪያ በተን
             buttons.push([Markup.button.callback('📍 የጉዞ መስመር ለመቀየር', `tr_route_${t._id}`)]);
             
-            // 4. በመኪናዎች መካከል ክፍተት መፍጠሪያ (ክሊክ የማይደረግ ቀጭን መስመር)
             buttons.push([Markup.button.callback('━━━━━━━━━━━━━━━━━━━━', 'none')]);
         });
         
-        // አዲስ መኪና መመዝገቢያ በተን ከታች ለብቻው ጎልቶ እንዲወጣ
         buttons.push([Markup.button.callback('➕ አዲስ መኪና ለመመዝገብ', 'truck_new_reg')]);
         
         ctx.reply('📋 የእርስዎ የተመዘገቡ መኪናዎች አስተዳደሪያ ፓናል፦\n\nየመኪናውን ሁኔታ ለመቀየር ከታች ያሉትን በተኖች ይጠቀሙ።', Markup.inlineKeyboard(buttons));
@@ -202,10 +197,7 @@ function createSearchRegex(input) {
 
 // --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ (Text Handler) ---
 bot.on('text', async (ctx, next) => {
-    if (!ctx.session) {
-        ctx.session = {};
-    }
-
+    ctx.session = ctx.session || {};
     const text = ctx.message.text;
     
     if (text.startsWith('/')) {
@@ -223,14 +215,17 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'REG_CEMENT_2';
         ctx.reply('2. ያለበት ቦታ ያስገቡ፡');
     } else if (action === 'REG_CEMENT_2') {
+        ctx.session.cementData = ctx.session.cementData || {};
         ctx.session.cementData.location = text;
         ctx.session.action = 'REG_CEMENT_3';
         ctx.reply('3. የድርጅቱ ስም ያስገቡ፡');
     } else if (action === 'REG_CEMENT_3') {
+        ctx.session.cementData = ctx.session.cementData || {};
         ctx.session.cementData.companyName = text;
         ctx.session.action = 'REG_CEMENT_4';
         ctx.reply('4. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'REG_CEMENT_4') {
+        ctx.session.cementData = ctx.session.cementData || {};
         ctx.session.cementData.phone = text;
         ctx.session.cementData.userId = userId;
         ctx.session.cementData.price = 1300; 
@@ -249,11 +244,12 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'BUY_CEMENT_2';
         ctx.reply('2. አድራሻ ያስገቡ፡');
     } else if (action === 'BUY_CEMENT_2') {
+        ctx.session.buyCement = ctx.session.buyCement || {};
         ctx.session.buyCement.address = text;
         ctx.session.action = 'BUY_CEMENT_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'BUY_CEMENT_3') {
-        if (!ctx.session.buyCement) ctx.session.buyCement = {};
+        ctx.session.buyCement = ctx.session.buyCement || {};
         ctx.session.buyCement.phone = text;
         
         const searchRegex = createSearchRegex(ctx.session.buyCement.type);
@@ -272,14 +268,17 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'REG_TRUCK_2';
         ctx.reply('የመኪናው ታርጋ ያስገቡ፡');
     } else if (action === 'REG_TRUCK_2') {
+        ctx.session.truckData = ctx.session.truckData || {};
         ctx.session.truckData.plate = text;
         ctx.session.action = 'REG_TRUCK_3';
         ctx.reply('የጉዞ መስመር ያስገቡ (ምሳሌ፡ ሀዋሳ አዳማ)፡');
     } else if (action === 'REG_TRUCK_3') {
+        ctx.session.truckData = ctx.session.truckData || {};
         ctx.session.truckData.route = text;
         ctx.session.action = 'REG_TRUCK_4';
         ctx.reply('ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'REG_TRUCK_4') {
+        ctx.session.truckData = ctx.session.truckData || {};
         ctx.session.truckData.phone = text;
         ctx.session.truckData.userId = userId;
         ctx.session.truckData.status = 'active';
@@ -309,12 +308,12 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'RENT_TRUCK_2';
         ctx.reply('2. የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ጎንደር)፡');
     } else if (action === 'RENT_TRUCK_2') {
-        if (!ctx.session.rentTruck) ctx.session.rentTruck = {};
+        ctx.session.rentTruck = ctx.session.rentTruck || {};
         ctx.session.rentTruck.route = text;
         ctx.session.action = 'RENT_TRUCK_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'RENT_TRUCK_3') {
-        if (!ctx.session.rentTruck) ctx.session.rentTruck = {};
+        ctx.session.rentTruck = ctx.session.rentTruck || {};
         ctx.session.rentTruck.phone = text; 
         
         const userRoute = ctx.session.rentTruck.route || "";
@@ -352,14 +351,17 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'REG_STEEL_2'; 
         ctx.reply('2. ያሉበት አድራሻ ያስገቡ፡');
     } else if (action === 'REG_STEEL_2') {
+        ctx.session.steelData = ctx.session.steelData || {};
         ctx.session.steelData.address = text;
         ctx.session.action = 'REG_STEEL_3'; 
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'REG_STEEL_3') {
+        ctx.session.steelData = ctx.session.steelData || {};
         ctx.session.steelData.phone = text;
         ctx.session.action = 'REG_STEEL_4'; 
         ctx.reply('4. ዋጋ ያስገቡ፡');
     } else if (action === 'REG_STEEL_4') {
+        ctx.session.steelData = ctx.session.steelData || {};
         ctx.session.steelData.price = text;
         ctx.session.steelData.userId = userId;
         ctx.session.steelData.status = 'active';
@@ -377,11 +379,12 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'BUY_STEEL_2';
         ctx.reply('2. ያሉበት ቦታ(አድራሻ) ያስገቡ፡');
     } else if (action === 'BUY_STEEL_2') {
+        ctx.session.buySteel = ctx.session.buySteel || {};
         ctx.session.buySteel.address = text;
         ctx.session.action = 'BUY_STEEL_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'BUY_STEEL_3') {
-        if (!ctx.session.buySteel) ctx.session.buySteel = {};
+        ctx.session.buySteel = ctx.session.buySteel || {};
         ctx.session.buySteel.phone = text;
         
         const searchRegex = createSearchRegex(ctx.session.buySteel.type);
@@ -400,15 +403,18 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'REG_MACHINERY_2'; 
         ctx.reply('2. የሚገኝበት አድራሻ ያስገቡ፡');
     } else if (action === 'REG_MACHINERY_2') {
+        ctx.session.machineryData = ctx.session.machineryData || {};
         ctx.session.machineryData.address = text;
         ctx.session.action = 'REG_MACHINERY_3'; 
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'REG_MACHINERY_3') {
+        ctx.session.machineryData = ctx.session.machineryData || {};
         ctx.session.machineryData.phone = text;
         ctx.session.machineryData.userId = userId;
         ctx.session.action = 'REG_MACHINERY_4'; 
         ctx.reply('4. የማሽነሪው የኪራይ ዋጋ ያስገቡ፡');
     } else if (action === 'REG_MACHINERY_4') {
+        ctx.session.machineryData = ctx.session.machineryData || {};
         ctx.session.machineryData.price = text;
         ctx.session.machineryData.status = 'active';
         await MachineryLeasor.findOneAndUpdate({ userId }, ctx.session.machineryData, { upsert: true });
@@ -420,12 +426,12 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'RENT_MACHINERY_2';
         ctx.reply('2. ያሉበት አድራሻ ያስገቡ፡');
     } else if (action === 'RENT_MACHINERY_2') {
-        if (!ctx.session.rentMachinery) ctx.session.rentMachinery = {};
+        ctx.session.rentMachinery = ctx.session.rentMachinery || {};
         ctx.session.rentMachinery.address = text;
         ctx.session.action = 'RENT_MACHINERY_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'RENT_MACHINERY_3') {
-        if (!ctx.session.rentMachinery) ctx.session.rentMachinery = {};
+        ctx.session.rentMachinery = ctx.session.rentMachinery || {};
         ctx.session.rentMachinery.phone = text; 
         
         const searchRegex = createSearchRegex(ctx.session.rentMachinery.type);
@@ -457,7 +463,6 @@ bot.action('cement_update_price', (ctx) => {
     ctx.reply('አዲሱን የአንድ ኩንታል ዋጋ ያስገቡ፡'); ctx.answerCbQuery();
 });
 
-// --- መኪናዎችን ለየብቻ ማስተዳደሪያ በተኖች ---
 bot.action('truck_new_reg', (ctx) => {
     ctx.session.action = 'REG_TRUCK_1';
     ctx.session.truckData = {};
@@ -487,7 +492,6 @@ bot.action(/^tr_route_(.+)$/, (ctx) => {
     ctx.answerCbQuery();
 });
 
-// --- 🟥 ብረት በተኖች ---
 bot.action('steel_active', async (ctx) => {
     await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
     ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery();
@@ -501,7 +505,6 @@ bot.action('steel_update_price', (ctx) => {
     ctx.reply('አዲሱን የብረት ዋጋ ያስገቡ፡'); ctx.answerCbQuery();
 });
 
-// --- 🔹 ማሽነሪ በተኖች ---
 bot.action('machinery_active', async (ctx) => {
     await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
     ctx.reply('ማሽነሪዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery();
@@ -511,7 +514,6 @@ bot.action('machinery_off', async (ctx) => {
     ctx.reply('ማሽነሪዎ [የለም] ተደርጓል።'); ctx.answerCbQuery();
 });
 
-// --- የአድሚን ማጥፊያ ዝርዝር በተኖች ---
 bot.action('adm_manage_cement', async (ctx) => {
     try {
         const sellers = await CementSeller.find({});
@@ -554,7 +556,6 @@ bot.action('adm_manage_steel', async (ctx) => {
     ctx.answerCbQuery();
 });
 
-// --- 🔥 የተስተካከሉ የማጥፊያ ተግባራት ---
 bot.action(/^del_cem_(.+)$/, async (ctx) => {
     try {
         await CementSeller.findByIdAndDelete(ctx.match);
