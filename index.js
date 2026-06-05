@@ -63,7 +63,7 @@ const cementSellerInline = Markup.inlineKeyboard([
 ]);
 
 bot.hears('🧱 ሲሚንቶ ለመሸጥ', async (ctx) => {
-    ctx.session = {}; // የድሮ Session ለማጽዳት
+    ctx.session = {};
     const existing = await CementSeller.findOne({ userId: ctx.from.id });
     if (existing) {
         ctx.reply(`አንተ ቀድሞውኑ የተመዘገብክ ቋሚ ደንበኛ ነህ። የአሁኑ ሁኔታህ፡ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}\nምን ማድረግ ትፈልጋለህ?`, cementSellerInline);
@@ -79,41 +79,12 @@ bot.hears('🧱 ሲሚንቶ ለመግዛት', (ctx) => {
     ctx.reply('1. ምን አይነት ሲሚንቶ ነው የሚፈልጉት?');
 });
 
-// --- 🚚 መኪና ክፍል ---
+// --- 🚚 መኪና ክፍል (የድሮው ዝርዝር ማሳያ ሙሉ በሙሉ ጠፍቷል) ---
 bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     ctx.session = {};
-    const trucks = await TruckLeasor.find({ userId: ctx.from.id });
-    
-    if (trucks.length === 0) {
-        ctx.session.action = 'REG_TRUCK_1';
-        ctx.session.truckData = {};
-        return ctx.reply('ምንም የተመዘገበ መኪና የለዎትም። ለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
-    }
-
-    let msg = "የያዟቸው መኪናዎች ዝርዝር፦\nማስተዳደር የሚፈልጉትን መኪና ታርጋ ይጫኑ፡";
-    const buttons = trucks.map(t => [
-        Markup.button.callback(`🚚 ታርጋ፡ ${t.plate} (${t.status === 'active' ? '✅ አለ' : '❌ የለም'})`, `manage_truck_${t._id}`)
-    ]);
-    buttons.push([Markup.button.callback('➕ ሌላ አዲስ መኪና ጨምር', 'truck_re_reg')]);
-    
-    ctx.reply(msg, Markup.inlineKeyboard(buttons));
-});
-
-bot.action(/manage_truck_(.+)/, async (ctx) => {
-    const truckId = ctx.match;
-    const truck = await TruckLeasor.findById(truckId);
-    if (!truck) return ctx.answerCbQuery('መኪናው አልተገኘም!');
-
-    const inline = Markup.inlineKeyboard([
-        [
-            Markup.button.callback('✅ አለ በል', `t_status_active_${truckId}`),
-            Markup.button.callback('❌ የለም በል', `t_status_off_${truckId}`)
-        ],
-        [Markup.button.callback('🔄 የጉዞ መስመር ለመቀየር', `t_route_change_${truckId}`)]
-    ]);
-
-    ctx.reply(`የመኪና መረጃ፦\nአይነት፡ ${truck.type}\nታርጋ፡ ${truck.plate}\nመስመር፡ ${truck.route}\nሁኔታ፡ ${truck.status === 'active' ? '✅ አለ' : '❌ የለም'}\n\nምን ማድረግ ይፈልጋሉ?`, inline);
-    ctx.answerCbQuery();
+    ctx.session.action = 'REG_TRUCK_1';
+    ctx.session.truckData = {};
+    ctx.reply('ለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
 });
 
 bot.hears('🚚 መኪና ለመከራየት', (ctx) => {
@@ -247,12 +218,6 @@ bot.on('text', async (ctx) => {
         ctx.session.action = null;
         ctx.reply('መኪናዎ በትክክል ተመዝግቧል! ፈላጊ ሲኖር እናሳውቆታለን።');
     }
-    else if (action.startsWith('CHANGE_ROUTE_FOR_')) {
-        const truckId = action.split('_');
-        await TruckLeasor.findByIdAndUpdate(truckId, { route: text });
-        ctx.reply(`የመኪናው የጉዞ መስመር ወደ "${text}" በተሳካ ሁኔታ ተቀይሯል!`);
-        ctx.session.action = null;
-    }
     else if (action === 'RENT_TRUCK_1') {
         ctx.session.rentTruck = { type: text };
         ctx.session.action = 'RENT_TRUCK_2';
@@ -280,18 +245,18 @@ bot.on('text', async (ctx) => {
         ctx.session.action = null;
     }
 
-    // --- 🟥 ብረት ምዝገባ ፍሰት [የተስተካከለ] ---
+    // --- 🟥 ብረት ምዝገባ ፍሰት ---
     else if (action === 'REG_STEEL_1') {
         ctx.session.steelData = { type: text };
-        ctx.session.action = 'REG_STEEL_2'; // 👈 እዚህ ጋር ተስተካክሏል
+        ctx.session.action = 'REG_STEEL_2'; 
         ctx.reply('2. ያሉበት አድራሻ ያስገቡ፡');
     } else if (action === 'REG_STEEL_2') {
         ctx.session.steelData.address = text;
-        ctx.session.action = 'REG_STEEL_3'; // 👈 እዚህ ጋር ተስተካክሏል
+        ctx.session.action = 'REG_STEEL_3'; 
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'REG_STEEL_3') {
         ctx.session.steelData.phone = text;
-        ctx.session.action = 'REG_STEEL_4'; // 👈 እዚህ ጋር ትክክለኛ የ Session action ተሰጥቷል
+        ctx.session.action = 'REG_STEEL_4'; 
         ctx.reply('4. ዋጋ ያስገቡ፡');
     } else if (action === 'REG_STEEL_4') {
         ctx.session.steelData.price = text;
@@ -324,18 +289,18 @@ bot.on('text', async (ctx) => {
         ctx.session.action = null;
     }
 
-    // --- 🔹 ማሽነሪ ምዝገባ ፍሰት [የተስተካከለ] ---
+    // --- 🔹 ማሽነሪ ምዝገባ ፍሰት ---
     else if (action === 'REG_MACHINERY_1') {
         ctx.session.machineryData = { type: text };
-        ctx.session.action = 'REG_MACHINERY_2'; // 👈 እዚህ ጋር ተስተካክሏል
+        ctx.session.action = 'REG_MACHINERY_2'; 
         ctx.reply('2. የሚገኝበት አድራሻ ያስገቡ፡');
     } else if (action === 'REG_MACHINERY_2') {
         ctx.session.machineryData.address = text;
-        ctx.session.action = 'REG_MACHINERY_3'; // 👈 እዚህ ጋር ተስተካክሏል
+        ctx.session.action = 'REG_MACHINERY_3'; 
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'REG_MACHINERY_3') {
         ctx.session.machineryData.phone = text;
-        ctx.session.action = 'REG_MACHINERY_4'; // 👈 እዚህ ጋር ትክክለኛ የ Session action ተሰጥቷል
+        ctx.session.action = 'REG_MACHINERY_4'; 
         ctx.reply('4. የማሽነሪው የኪራይ ዋጋ ያስገቡ፡');
     } else if (action === 'REG_MACHINERY_4') {
         ctx.session.machineryData.price = text;
@@ -365,32 +330,6 @@ bot.on('text', async (ctx) => {
 });
 
 // --- 🔘 የውስጥ በተኖች አሠራር ---
-bot.action(/t_status_active_(.+)/, async (ctx) => {
-    await TruckLeasor.findByIdAndUpdate(ctx.match, { status: 'active' });
-    ctx.reply('የመኪናው ሁኔታ ወደ [✅ አለ] ተቀይሯል።');
-    ctx.answerCbQuery();
-});
-
-bot.action(/t_status_off_(.+)/, async (ctx) => {
-    await TruckLeasor.findByIdAndUpdate(ctx.match, { status: 'off' });
-    ctx.reply('የመኪናው ሁኔታ ወደ [❌ የለም] ተቀይሯል።');
-    ctx.answerCbQuery();
-});
-
-bot.action(/t_route_change_(.+)/, (ctx) => {
-    const truckId = ctx.match;
-    ctx.session.action = `CHANGE_ROUTE_FOR_${truckId}`;
-    ctx.reply('እባክዎ አዲሱን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ጎንደር)፡');
-    ctx.answerCbQuery();
-});
-
-bot.action('truck_re_reg', (ctx) => {
-    ctx.session.action = 'REG_TRUCK_1';
-    ctx.session.truckData = {};
-    ctx.reply('የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
-    ctx.answerCbQuery();
-});
-
 bot.action('cement_active', async (ctx) => {
     await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
     ctx.reply('ሁኔታዎ ወደ [አለ] ተቀይሯል።'); ctx.answerCbQuery();
@@ -430,62 +369,14 @@ bot.action('machinery_off', async (ctx) => {
     ctx.reply('ማሽነሪዎ [የለም] ተደርጓል።'); ctx.answerCbQuery();
 });
 
-// --- 👑 የአድሚን መቆጣጠሪያ ፓናል (Admin Dashboard) ---
-bot.command('admin_panel', async (ctx) => {
-    if (ctx.from.id !== 7423347375) {
-        return ctx.reply('ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!');
-    }
-
-    const trucks = await TruckLeasor.find({});
-    if (trucks.length === 0) {
-        return ctx.reply('👑 አድሚን፡ በዳታቤዝ ውስጥ የተመዘገበ ምንም መኪማ የለም।');
-    }
-
-    const buttons = trucks.map(truck => [
-        Markup.button.callback(`🚚 ${truck.plate} (${truck.type})`, 'none'),
-        Markup.button.callback('❌ ሰርዝ', `admin_del_${truck._id}`)
-    ]);
-
-    ctx.reply('👑 እንኳን ወደ አድሚን ማጥፊያ ፓናል በሰላም መጡ። ማጥፋት የሚፈልጉትን መኪና ❌ የሚለውን ይንኩ፡', Markup.inlineKeyboard(buttons));
-});
-
-bot.action(/^admin_del_(.+)$/, async (ctx) => {
-    if (ctx.from.id !== 7423347375) {
-        return ctx.answerCbQuery('ፈቃድ የለዎትም!', { show_alert: true });
-    }
-
-    const truckId = ctx.match; 
-    const deleted = await TruckLeasor.findByIdAndDelete(truckId);
-
-    if (deleted) {
-        ctx.answerCbQuery(`ታርጋ ${deleted.plate} ተሰርዟል!`);
-        
-        const remainingTrucks = await TruckLeasor.find({});
-        if (remainingTrucks.length === 0) {
-            return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች ከዳታቤዝ ላይ ተደምስሰዋል።');
-        }
-
-        const nextButtons = remainingTrucks.map(t => [
-            Markup.button.callback(`🚚 ${t.plate} (${t.type})`, 'none'),
-            Markup.button.callback('❌ ሰርዝ', `admin_del_${t._id}`)
-        ]);
-
-        ctx.editMessageText('👑 መኪናው በተሳካ ሁኔታ ተሰርዟል። የቀሩት ዝርዝር፡', Markup.inlineKeyboard(nextButtons));
-    } else {
-        ctx.answerCbQuery('ይህ መኪና በዳታቤዝ ውስጥ አልተገኘም!', { show_alert: true });
-    }
-});
-
-bot.action('none', (ctx) => ctx.answerCbQuery());
-
 // --- 🌐 Render ፖርት ማስከፈቻ የዌብ ሰርቨር ---
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot is Running with MongoDB connection!');
+    res.end('Bot is Running!');
 }).listen(PORT);
 
-bot.launch().then(() => console.log('Simple Bot is alive on Render with Permanent DB!'));
+bot.launch().then(() => console.log('Bot is clean and ready for new commands!'));
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
