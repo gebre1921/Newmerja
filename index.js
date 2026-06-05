@@ -17,12 +17,13 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log("ማንጎ ዲቢ ዳታቤዝ በተሳካ ሁኔታ ተገናኝቷል!"))
     .catch(err => console.error("የዳታቤዝ ግንኙነት ስህተት:", err));
 
-// --- 📊 የዳታቤዝ ሰንጠረዦች መዋቅር ---
-const CementSeller = mongoose.model('CementSeller', { userId: Number, type: String, location: String, companyName: String, phone: String, price: Number, status: String });
-const SteelSeller = mongoose.model('SteelSeller', { userId: Number, type: String, address: String, phone: String, price: String, status: String });
-const MachineryLeasor = mongoose.model('MachineryLeasor', { userId: Number, type: String, address: String, phone: String, price: String, status: String });
+// --- 📊 የዳታቤዝ ሰንጠረዦች መዋቅር (Schemas) ---
+// 🔥 ፊክስ፦ የብረት ሻጭ ሞዴልን ሁሉንም ፊልዶች አካትቶ በትክክል መበየን
+const CementSeller = mongoose.model('CementSeller', new mongoose.Schema({ userId: Number, type: String, location: String, companyName: String, phone: String, price: Number, status: String }));
+const SteelSeller = mongoose.model('SteelSeller', new mongoose.Schema({ userId: Number, type: String, address: String, phone: String, price: String, status: String }));
+const MachineryLeasor = mongoose.model('MachineryLeasor', new mongoose.Schema({ userId: Number, type: String, address: String, phone: String, price: String, status: String }));
 
-const TruckLeasor = mongoose.model('TruckLeasor', { 
+const TruckLeasor = mongoose.model('TruckLeasor', new mongoose.Schema({ 
     userId: Number, 
     type: String, 
     plate: String, 
@@ -30,35 +31,30 @@ const TruckLeasor = mongoose.model('TruckLeasor', {
     phone: String, 
     status: String,
     rentedCount: { type: Number, default: 0 } 
-});
+}));
 
-// የሰዎችን ሴሽን ዳታቤዝ ላይ በቋሚነት ራሳችን የምናስቀምጥበት ሞዴል
-const BotSession = mongoose.model('BotSession', {
+const BotSession = mongoose.model('BotSession', new mongoose.Schema({
     key: { type: String, required: true, unique: true },
     data: { type: Object, default: {} }
-});
+}));
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// 🔥 የሴሽን መደባለቅን እና መጥፋትን የሚፈታው Custom MongoDB Session Middleware
+// 🔄 የሴሽን መደባለቅን እና መጥፋትን የሚፈታው Custom MongoDB Session Middleware
 bot.use(async (ctx, next) => {
     if (!ctx.from) return next();
     
     const sessionKey = `${ctx.from.id}:${ctx.from.id}`;
     
-    // 1. የዚህን ተጠቃሚ ሴሽን ከዳታቤዝ መፈለግ
     let sessionDoc = await BotSession.findOne({ key: sessionKey });
     if (!sessionDoc) {
         sessionDoc = await BotSession.create({ key: sessionKey, data: {} });
     }
     
-    // ctx.session ን ከዳታቤዙ ዳታ ጋር ማገናኘት
     ctx.session = sessionDoc.data || {};
     
-    // 2. ቀጣዮቹን ስራዎች ማሰራት
     await next();
     
-    // 3. ቦቱ ስራውን ሲጨርስ የተለወጠውን ሴሽን መልሶ ዳታቤዝ ላይ ሴቭ ማድረግ
     await BotSession.updateOne({ key: sessionKey }, { $set: { data: ctx.session } });
 });
 
@@ -84,7 +80,6 @@ bot.command('admin_panel', async (ctx) => {
         return ctx.reply('ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!');
     }
     
-    // 🔥 ፊክስ፦ አድሚኑ ቀጥታ ሲገባ ክራሽ እንዳያደርግ መጀመሪያ ሴሽኑን ያዘጋጃል
     ctx.session = ctx.session || {};
     ctx.session.action = null;
     
@@ -490,102 +485,4 @@ bot.action(/^tr_act_(.+)$/, async (ctx) => {
     const truckId = ctx.match;
     await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
     ctx.reply('የመኪናው ሁኔታ ወደ [✅ ዝግጁ] ተቀይሯል።');
-    ctx.answerCbQuery();
-});
-
-bot.action(/^tr_off_(.+)$/, async (ctx) => {
-    const truckId = ctx.match;
-    await TruckLeasor.findByIdAndUpdate(truckId, { status: 'off' });
-    ctx.reply('የመኪናው ሁኔታ ወደ [❌ ስራ ላይ / የለም] ተቀይሯል።');
-    ctx.answerCbQuery();
-});
-
-bot.action(/^tr_route_(.+)$/, (ctx) => {
-    const truckId = ctx.match;
-    ctx.session.action = 'UPDATE_TRUCK_ROUTE';
-    ctx.session.targetTruckId = truckId;
-    ctx.reply('እባክዎ አዲሱን የመኪናውን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ናዝሬት)፦');
-    ctx.answerCbQuery();
-});
-
-bot.action('steel_active', async (ctx) => {
-    await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
-    ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery();
-});
-bot.action('steel_off', async (ctx) => {
-    await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' });
-    ctx.reply('የብረት ምርትዎ [የለም] ተደርጓል።'); ctx.answerCbQuery();
-});
-bot.action('steel_update_price', (ctx) => {
-    ctx.session.action = 'UPDATE_STEEL_PRICE';
-    ctx.reply('አዲሱን የብረት ዋጋ ያስገቡ፡'); ctx.answerCbQuery();
-});
-
-bot.action('machinery_active', async (ctx) => {
-    await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
-    ctx.reply('ማሽነሪዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery();
-});
-bot.action('machinery_off', async (ctx) => {
-    await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' });
-    ctx.reply('ማሽነሪዎ [የለም] ተደርጓል።'); ctx.answerCbQuery();
-});
-
-bot.action('adm_manage_cement', async (ctx) => {
-    try {
-        const sellers = await CementSeller.find({});
-        if (sellers.length === 0) return ctx.reply('🧱 ምንም የተመዘገበ የሲሚንቶ ሻጭ የለም።');
-        
-        const buttons = sellers.map(s => [
-            Markup.button.callback(`🧱 ${s.companyName || 'ሲሚንቶ'} (${s.type})`, 'none'),
-            Markup.button.callback('❌ ሰርዝ', `del_cem_${s._id}`)
-        ]);
-        ctx.reply('ለማጥፋት ❌ ሰርዝ የሚለውን ይጫኑ፦', Markup.inlineKeyboard(buttons));
-    } catch (e) { console.error(e); }
-    ctx.answerCbQuery();
-});
-
-bot.action('adm_manage_truck', async (ctx) => {
-    try {
-        const trucks = await TruckLeasor.find({});
-        if (trucks.length === 0) return ctx.reply('🚚 ምንም የተመዘገበ መኪና የለም።');
-        
-        const buttons = trucks.map(t => [
-            Markup.button.callback(`🚚 ታርጋ፦ ${t.plate} (${t.type})`, 'none'),
-            Markup.button.callback('❌ ሰርዝ', `del_trk_${t._id}`)
-        ]);
-        ctx.reply('ለማጥፋት ❌ ሰርዝ የሚለውን ይጫኑ፦', Markup.inlineKeyboard(buttons));
-    } catch (e) { console.error(e); }
-    ctx.answerCbQuery();
-});
-
-bot.action('adm_manage_steel', async (ctx) => {
-    try {
-        const steels = await SteelSeller.find({});
-        if (steels.length === 0) return ctx.reply('🟥 ምንም የተመዘገበ የብረት ሻጭ የለም።');
-        
-        const buttons = steels.map(s => [
-            Markup.button.callback(`🟥 አይነት፦ ${s.type}`, 'none'),
-            Markup.button.callback('❌ ሰርዝ', `del_stl_${s._id}`)
-        ]);
-        ctx.reply('ለማጥፋት ❌ ሰርዝ የሚለውን ይጫኑ፦', Markup.inlineKeyboard(buttons));
-    } catch (e) { console.error(e); }
-    ctx.answerCbQuery();
-});
-
-bot.action(/^del_cem_(.+)$/, async (ctx) => {
-    try {
-        await CementSeller.findByIdAndDelete(ctx.match);
-        ctx.reply('🧱 የሲሚንቶ መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
-    } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
-    ctx.answerCbQuery();
-});
-
-bot.action(/^del_trk_(.+)$/, async (ctx) => {
-    try {
-        await TruckLeasor.findByIdAndDelete(ctx.match);
-        ctx.reply('🚚 የመኪናው መረጃ ከዳታቤዝ ላይ ተሰርዟል!');
-    } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
-    ctx.answerCbQuery();
-});
-
-bot.action(/^del_stl
+    ctx.
