@@ -158,6 +158,15 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
     ctx.reply('1. የሚፈልጉት የማሽነሪ አይነት ያስገቡ፡');
 });
 
+// 💡 የፊደል ስህተትን (Spelling Error) መቋቋሚያ ረዳት ፈንክሽን
+function createFuzzyRegex(input) {
+    if (!input) return new RegExp('', 'i');
+    const clean = input.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // እያንዳንዱን ፊደል በመለየት በመሀል እና በመጨረሻ ተጨማሪ የፊደል ግድፈቶች ቢኖሩ እንኳ እንዲያገኘው ያደርጋል
+    const fuzzyPattern = clean.split('').map(char => `${char}*`).join('.*');
+    return new RegExp(fuzzyPattern, 'i');
+}
+
 // --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ (Text Handler) ---
 bot.on('text', async (ctx, next) => {
     const text = ctx.message.text;
@@ -207,7 +216,9 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'BUY_CEMENT_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'BUY_CEMENT_3') {
-        const available = await CementSeller.findOne({ type: new RegExp(ctx.session.buyCement.type, 'i'), status: 'active' });
+        // 🔥 የፊደል ስህተት ቢኖር እንኳ ፈላጊው እንዲያገኝ ተደርጓል
+        const searchRegex = createFuzzyRegex(ctx.session.buyCement.type);
+        const available = await CementSeller.findOne({ type: searchRegex, status: 'active' });
         if (available) {
             ctx.reply(`የጠየቁት የሲሚንቶ አይነት እኛ ጋር ይገኛል\nየአሁን ዋጋ፡ ${available.price} ብር\nበ 0960336138 ደውለው ማዘዝ ይችላሉ`);
         } else {
@@ -233,7 +244,7 @@ bot.on('text', async (ctx, next) => {
         ctx.session.truckData.phone = text;
         ctx.session.truckData.userId = userId;
         ctx.session.truckData.status = 'active';
-        ctx.session.truckData.rentedCount = 0; // 🔥 አዲስ መኪና ሲመዘገብ መጀመሪያ 0 መሆኑን ማረጋገጫ
+        ctx.session.truckData.rentedCount = 0; 
         
         await TruckLeasor.findOneAndUpdate(
             { userId: userId, plate: ctx.session.truckData.plate }, 
@@ -253,19 +264,26 @@ bot.on('text', async (ctx, next) => {
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'RENT_TRUCK_3') {
         const cleanRoute = ctx.session.rentTruck.route.toLowerCase();
-        let searchRegex = (cleanRoute.includes("gondar") || cleanRoute.includes("ጎንደር")) ? new RegExp("(gondar|ጎንደር)", "i") : new RegExp(ctx.session.rentTruck.route, "i");
+        
+        // 🔥 አማርኛም ሆነ እንግሊዘኛ የፊደል ስህተት ቢኖር እንኳ የሚፈልገውን መስመር በጥራት የሚያገኝ Fuzzy Search ሎጅክ
+        let searchRegex;
+        if (cleanRoute.includes("gondar") || cleanRoute.includes("ጎንደር") || cleanRoute.includes("gondr") || cleanRoute.includes("gonder")) {
+            searchRegex = new RegExp("(gondar|ጎንደር|gondr|gonder)", "i");
+        } else {
+            searchRegex = createFuzzyRegex(ctx.session.rentTruck.route);
+        }
 
-        // 🔥 ማሻሻያ፦ rentedCount ከዚህ በፊት ባዶ የነበሩትንም ጭምር በየተራ ፍትሃዊ በሆነ መንገድ እንዲያፈራርቅ ተደርጓል
+        const typeRegex = createFuzzyRegex(ctx.session.rentTruck.type);
+
         const foundTruck = await TruckLeasor.findOne({ 
-            type: new RegExp(ctx.session.rentTruck.type, 'i'),
+            type: typeRegex,
             route: searchRegex, 
             status: 'active' 
-        }).sort({ rentedCount: 1, _id: 1 }); // በ rentedCount እኩል ከሆኑ በ ID ቅደም ተከተል ያፈራርቃቸዋል
+        }).sort({ rentedCount: 1, _id: 1 }); 
 
         if (foundTruck) {
             ctx.reply(`የሚፈልጉት መኪና ይገኛል!\nየመኪናው አይነት፡ ${foundTruck.type}\nታርጋ ቁጥር፡ ${foundTruck.plate}\nለማዘዝ በ 0960336138 ይደውሉልን`);
             
-            // ቆጣሪውን በ 1 ከፍ ማድረግ (ቀጣይ ፍለጋ ላይ ሌላኛው መኪና ቅድሚያ እንዲያገኝ)
             const currentCount = foundTruck.rentedCount || 0;
             await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $set: { rentedCount: currentCount + 1 } });
         } else {
@@ -309,7 +327,9 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'BUY_STEEL_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'BUY_STEEL_3') {
-        const available = await SteelSeller.findOne({ type: new RegExp(ctx.session.buySteel.type, 'i'), status: 'active' });
+        // 🔥 የፊደል ስህተት ማረሚያ ለብረት ፍለጋ
+        const searchRegex = createFuzzyRegex(ctx.session.buySteel.type);
+        const available = await SteelSeller.findOne({ type: searchRegex, status: 'active' });
         if (available) {
             ctx.reply('የጠየቁት የብረት አይነቶች እኛ ጋር ይገኛሉ ለማዘዝ በ 0960336138 ይደውሉልን');
         } else {
@@ -348,7 +368,9 @@ bot.on('text', async (ctx, next) => {
         ctx.session.rentMachinery.action = 'RENT_MACHINERY_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'RENT_MACHINERY_3') {
-        const available = await MachineryLeasor.findOne({ type: new RegExp(ctx.session.rentMachinery.type, 'i'), status: 'active' });
+        // 🔥 የፊደል ስህተት ማረሚያ ለማሽነሪ ፍለጋ
+        const searchRegex = createFuzzyRegex(ctx.session.rentMachinery.type);
+        const available = await MachineryLeasor.findOne({ type: searchRegex, status: 'active' });
         if (available) {
             ctx.reply('የጠየቁት የማሽነሪ አይነት እኛ ጋር ይገኛል ማሽነሪውን ለመከራየት በ0960336138 ይደውሉልን');
         } else {
@@ -472,10 +494,3 @@ bot.action('none', (ctx) => ctx.answerCbQuery());
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot is Running!');
-}).listen(PORT);
-
-bot.launch().then(() => console.log('ቦቱ አሁን ንፁህ ነው፤ አድሚን ፓናሉም በትክክል እየሰራ ነው!'));
-
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
