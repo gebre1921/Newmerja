@@ -23,7 +23,7 @@ const CementSeller = mongoose.model('CementSeller', { userId: Number, type: Stri
 const TruckLeasor = mongoose.model('TruckLeasor', { 
     userId: Number, 
     type: String, 
-    plate: String, 
+    plate: String, // 🔑 አሁን ዋና መለያችን ታርጋ ነው
     route: String, 
     phone: String, 
     status: String,
@@ -73,10 +73,11 @@ bot.command('admin_panel', async (ctx) => {
             return ctx.reply('👑 አድሚን፡ በዳታቤዝ ውስጥ ምንም የተመዘገበ መኪና የለም።');
         }
 
+        // 🔥 ማሻሻያ፡ ለማጥፋት የ MongoDB ልዩ _id መጠቀም አስተማማኝ ያደርገዋል
         const buttons = trucks.map(truck => {
             return [
                 Markup.button.callback(`📇 ታርጋ፦ ${truck.plate || 'የለም'} (${truck.type || 'FSR'})`, 'none'),
-                Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `del_${truck.userId}`)
+                Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `del_${truck._id}`)
             ];
         });
 
@@ -92,10 +93,9 @@ const cementSellerInline = Markup.inlineKeyboard([
     [Markup.button.callback('➕ አዲስ ለመመዝገብ', 'cement_re_reg'), Markup.button.callback('💰 ዋጋ ለማሻሻል', 'cement_update_price')]
 ]);
 
-// 🛠️ ማሻሻያ፡ ለመኪናም አዲስ ምዝገባ በተን ተጨምሯል
 const truckLeasorInline = Markup.inlineKeyboard([
     [Markup.button.callback('✅ አለ', 'truck_active'), Markup.button.callback('❌ የለም', 'truck_off')],
-    [Markup.button.callback('🔄 የጉዞ መስመር ለመቀየር', 'truck_change_route'), Markup.button.callback('➕ አዲስ ለመመዝገብ', 'truck_re_reg')]
+    [Markup.button.callback('🔄 የጉዞ መስመር ለመቀየር', 'truck_change_route'), Markup.button.callback('➕ አዲስ መኪና መዝግብ', 'truck_re_reg')]
 ]);
 
 const steelSellerInline = Markup.inlineKeyboard([
@@ -127,9 +127,15 @@ bot.hears('🧱 ሲሚንቶ ለመግዛት', (ctx) => {
 
 bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     const session = getSession(ctx.from.id);
-    const existing = await TruckLeasor.findOne({ userId: ctx.from.id });
-    if (existing) {
-        ctx.reply(`ቀድሞውኑ የተመዘገበ መኪና አለዎት።\n\n🔹 የመኪናው አይነት፡ ${existing.type || 'የተሳሳተ'}\n🔹 ታርጋ ቁጥር፡ ${existing.plate || 'የተሳሳተ'}\n🔹 የአሁኑ የጉዞ መስመር፡ ${existing.route || 'የተሳሳተ'}\n\nሁኔታዎን ለመቀየር ወይም መረጃውን በአዲስ ለመተካት ከታች ይጠቀሙ፦`, truckLeasorInline);
+    // 🛠️ ማሻሻያ፡ አንድ ሰው ብዙ መኪና ሊኖረው ስለሚችል ሁሉንም ዝርዝር ያሳየዋል
+    const existingTrucks = await TruckLeasor.find({ userId: ctx.from.id });
+    if (existingTrucks.length > 0) {
+        let textMsg = `የተመዘገቡ ${existingTrucks.length} መኪናዎች አሉዎት፦\n\n`;
+        existingTrucks.forEach((truck, index) => {
+            textMsg += `${index + 1}. 🚚 ${truck.type} | ታርጋ፦ ${truck.plate} | መስመር፦ ${truck.route}\n`;
+        });
+        textMsg += `\nሁኔታ ለመቀየር ወይም አዲስ ለመጨመር ከታች ይጠቀሙ፦`;
+        ctx.reply(textMsg, truckLeasorInline);
     } else {
         session.action = 'REG_TRUCK_1';
         ctx.reply('ምን አይነት መኪና እንደሆነ ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
@@ -188,12 +194,6 @@ bot.action(/^del_(.+)$/, async (ctx) => {
         if (mongoose.Types.ObjectId.isValid(idParam)) {
             deleted = await TruckLeasor.findByIdAndDelete(idParam);
         } 
-        if (!deleted) {
-            const targetUserId = Number(idParam);
-            if (!isNaN(targetUserId)) {
-                deleted = await TruckLeasor.findOneAndDelete({ userId: targetUserId });
-            }
-        }
 
         if (deleted) {
             await ctx.answerCbQuery(`መረጃው በተሳካ ሁኔታ ጠፍቷል!`, { show_alert: true });
@@ -203,7 +203,7 @@ bot.action(/^del_(.+)$/, async (ctx) => {
             }
             const nextButtons = remainingTrucks.map(t => [
                 Markup.button.callback(`📇 ታርጋ፦ ${t.plate || 'የለም'} (${t.type || 'FSR'})`, 'none'),
-                Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `del_${t.userId}`)
+                Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `del_${t._id}`)
             ]);
             await ctx.editMessageText('👑 መኪናው ጠፍቷል። በዳታቤዝ ውስጥ የቀሩት ዝርዝር፦', Markup.inlineKeyboard(nextButtons));
         } else {
@@ -221,10 +221,9 @@ bot.action('cement_off', async (ctx) => { await CementSeller.findOneAndUpdate({ 
 bot.action('cement_re_reg', (ctx) => { const session = getSession(ctx.from.id); session.action = 'REG_CEMENT_1'; ctx.reply('የሲሚንቶ አይነት ያስገቡ፡'); ctx.answerCbQuery(); });
 bot.action('cement_update_price', (ctx) => { const session = getSession(ctx.from.id); session.action = 'UPDATE_CEMENT_PRICE'; ctx.reply('አዲሱን የአንድ ኩንታል ዋጋ ያስገቡ፡'); ctx.answerCbQuery(); });
 
-bot.action('truck_active', async (ctx) => { await TruckLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('መኪናዎ ዝግጁ (Active) ተደርጓል።'); ctx.answerCbQuery(); });
-bot.action('truck_off', async (ctx) => { await TruckLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('መኪናዎ ከእይታ ውጪ [የለም] ተደርጓል።'); ctx.answerCbQuery(); });
-bot.action('truck_change_route', (ctx) => { const session = getSession(ctx.from.id); session.action = 'CHANGE_TRUCK_ROUTE'; ctx.reply('አዲሱን የጉዞ መስመር ያስገቡ፡'); ctx.answerCbQuery(); });
-// 🛠️ የመኪና አዲስ ምዝገባ አክሽን
+bot.action('truck_active', async (ctx) => { await TruckLeasor.updateMany({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('ሁሉም መኪናዎችዎ ዝግጁ (Active) ተደርገዋል።'); ctx.answerCbQuery(); });
+bot.action('truck_off', async (ctx) => { await TruckLeasor.updateMany({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('ሁሉም መኪናዎችዎ ከእይታ ውጪ [የለም] ተደርገዋል።'); ctx.answerCbQuery(); });
+bot.action('truck_change_route', (ctx) => { const session = getSession(ctx.from.id); session.action = 'CHANGE_TRUCK_ROUTE'; ctx.reply('ለመቀየር የፈለጉትን የመኪና ታርጋ ቁጥር ያስገቡ፡'); ctx.answerCbQuery(); });
 bot.action('truck_re_reg', (ctx) => { const session = getSession(ctx.from.id); session.action = 'REG_TRUCK_1'; ctx.reply('ምን አይነት መኪና እንደሆነ ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡'); ctx.answerCbQuery(); });
 
 bot.action('steel_active', async (ctx) => { await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery(); });
@@ -240,18 +239,10 @@ bot.on('text', async (ctx, next) => {
     const userId = ctx.from.id;
     const session = getSession(userId);
 
-    // 🛑 [አዲሱ ጥብቅ መከላከያ]፡ ተጠቃሚው ትዕዛዝ ከላከ መዝጋቢውን ሰርዝ
-    if (text.startsWith('/')) {
-        session.action = null;
-        return next();
-    }
+    if (text.startsWith('/')) { session.action = null; return next(); }
 
-    // 🛑 [አዲሱ ጥብቅ መከላከያ]፡ ተጠቃሚው በምዝገባ መሃል የዋና ሜኑ በተኖችን ቢነካ መዝጋቢውን ሰርዝ
     const mainButtons = ['🧱 ሲሚንቶ ለመሸጥ', '🧱 ሲሚንቶ ለመግዛት', '🚚 መኪና ለማከራየት', '🚚 መኪና ለመከራየት', '🟥 ብረት ለመሸጥ', '🟥 ብረት ለመግዛት', '🔹 ማሽነሪ ለማከራየት', '🔹 ማሽነሪ ለመከራየት'];
-    if (mainButtons.includes(text)) {
-        session.action = null;
-        return next();
-    }
+    if (mainButtons.includes(text)) { session.action = null; return next(); }
 
     const action = session.action;
     if (!action) return;
@@ -265,19 +256,50 @@ bot.on('text', async (ctx, next) => {
     else if (action === 'BUY_CEMENT_2') { session.buyCement.address = text; session.action = 'BUY_CEMENT_3'; ctx.reply('3. ስልክ ቁጥር ያስገቡ፡'); }
     else if (action === 'BUY_CEMENT_3') { const available = await CementSeller.findOne({ type: new RegExp(session.buyCement.type, 'i'), status: 'active' }); if (available) { ctx.reply(`እኛ ጋር ይገኛል\nየአሁን ዋጋ፡ ${available.price} ብር\nበ 0960336138 ይደውሉ`); } else { ctx.reply('የጠየቁት የሲሚንቶ አይነት የለም'); } session.action = null; }
 
+    // 🚚 የመኪና ምዝገባ (በታርጋ ቁጥር መለያነት የተገነባ)
     else if (action === 'REG_TRUCK_1') { session.truckData = { type: text }; session.action = 'REG_TRUCK_2'; ctx.reply('የመኪናው ታርጋ ያስገቡ፡'); }
     else if (action === 'REG_TRUCK_2') { session.truckData.plate = text; session.action = 'REG_TRUCK_3'; ctx.reply('የጉዞ መስመር ያስገቡ (ምሳሌ፡ ሀዋሳ አዳማ)፡'); }
     else if (action === 'REG_TRUCK_3') { session.truckData.route = text; session.action = 'REG_TRUCK_4'; ctx.reply('ስልክ ቁጥር ያስገቡ፡'); }
-    else if (action === 'REG_TRUCK_4') { session.truckData.phone = text; session.truckData.userId = userId; session.truckData.status = 'active'; session.truckData.rentedCount = 0; await TruckLeasor.findOneAndUpdate({ userId }, session.truckData, { upsert: true }); session.action = null; ctx.reply('መረጃዎ በትክክል ደርሶናል', truckLeasorInline); }
-    else if (action === 'CHANGE_TRUCK_ROUTE') { await TruckLeasor.findOneAndUpdate({ userId }, { route: text }); ctx.reply(`የጉዞ መስመርዎ ወደ "${text}" ተቀይሯል!`); session.action = null; }
+    else if (action === 'REG_TRUCK_4') { 
+        session.truckData.phone = text; 
+        session.truckData.userId = userId; 
+        session.truckData.status = 'active'; 
+        
+        // ታርጋው አዲስ ከሆነ ብቻ 0 አድርግ፡ የቆየ ከሆነ ሬንት ካውንቱን እንዳያጠፋው
+        const exist = await TruckLeasor.findOne({ plate: session.truckData.plate });
+        if (!exist) session.truckData.rentedCount = 0;
+
+        await TruckLeasor.findOneAndUpdate({ plate: session.truckData.plate }, session.truckData, { upsert: true }); 
+        session.action = null; 
+        ctx.reply('መረጃዎ በትክክል ደርሶናል!', truckLeasorInline); 
+    }
+    else if (action === 'CHANGE_TRUCK_ROUTE') { 
+        session.routeChangePlate = text;
+        session.action = 'CONFIRM_TRUCK_ROUTE';
+        ctx.reply('እባክዎ አዲሱን የጉዞ መስመር ያስገቡ፡');
+    }
+    else if (action === 'CONFIRM_TRUCK_ROUTE') {
+        const updated = await TruckLeasor.findOneAndUpdate({ userId, plate: session.routeChangePlate }, { route: text });
+        if (updated) ctx.reply(`ታርጋ ${session.routeChangePlate} የጉዞ መስመር ወደ "${text}" ተቀይሯል!`);
+        else ctx.reply('ይህ ታርጋ ቁጥር በእርስዎ አካውንት ስር አልተገኘም።');
+        session.action = null;
+    }
+    // 🔀 ፍትሃዊ አከፋፈል (Fair Matching Algorithm)
     else if (action === 'RENT_TRUCK_1') { session.rentTruck = { type: text }; session.action = 'RENT_TRUCK_2'; ctx.reply('2. የጉዞ መስመር ያስገቡ፡'); }
     else if (action === 'RENT_TRUCK_2') { session.rentTruck.route = text; session.action = 'RENT_TRUCK_3'; ctx.reply('3. ስልክ ቁጥር ያስገቡ፡'); }
     else if (action === 'RENT_TRUCK_3') { 
         const cleanRoute = session.rentTruck.route.toLowerCase();
         let searchRegex = (cleanRoute.includes("gondar") || cleanRoute.includes("ጎንደር")) ? new RegExp("(gondar|ጎንደር)", "i") : new RegExp(session.rentTruck.route, "i");
-        const foundTruck = await TruckLeasor.findOne({ type: new RegExp(session.rentTruck.type, 'i'), route: searchRegex, status: 'active' }).sort({ rentedCount: 1 });
-        if (foundTruck) { ctx.reply(`የሚፈልጉት መኪና ይገኛል!\nአይነት፡ ${foundTruck.type}\nታርጋ፡ ${foundTruck.plate}\nበ 0960336138 ይደውሉልን`); await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $inc: { rentedCount: 1 } }); } 
-        else { ctx.reply('በዚህ መስመር የሚጓዝ መኪና የለም'); }
+        
+        // 🔥 ዋናው ማሻሻያ፦ በ rentedCount አነስተኛ የሆኑትን ይመርጣል፤ እኩል ከሆኑ በ ID ቅደም ተከተል (Round-Robin) ያደርጋል
+        const foundTruck = await TruckLeasor.findOne({ type: new RegExp(session.rentTruck.type, 'i'), route: searchRegex, status: 'active' }).sort({ rentedCount: 1, _id: 1 });
+        
+        if (foundTruck) { 
+            ctx.reply(`የሚፈልጉት መኪና ይገኛል!\nአይነት፡ ${foundTruck.type}\nታርጋ፡ ${foundTruck.plate}\nበ 0960336138 ይደውሉልን`); 
+            await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $inc: { rentedCount: 1 } }); 
+        } else { 
+            ctx.reply('በዚህ መስመር የሚጓዝ መኪና የለም'); 
+        }
         session.action = null; 
     }
 
