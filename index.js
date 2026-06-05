@@ -293,3 +293,185 @@ bot.on('text', async (ctx, next) => {
     }
     else if (action === 'UPDATE_STEEL_PRICE') {
         await SteelSeller.findOneAndUpdate({ userId }, { price: text });
+        ctx.reply(`የብረት ዋጋዎ ወደ ${text} ብር ተሻሽሏል!`);
+        ctx.session.action = null;
+    }
+    else if (action === 'BUY_STEEL_1') {
+        ctx.session.buySteel = { type: text };
+        ctx.session.action = 'BUY_STEEL_2';
+        ctx.reply('2. ያሉበት ቦታ(አድራሻ) ያስገቡ፡');
+    } else if (action === 'BUY_STEEL_2') {
+        ctx.session.buySteel.address = text;
+        ctx.session.action = 'BUY_STEEL_3';
+        ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
+    } else if (action === 'BUY_STEEL_3') {
+        const available = await SteelSeller.findOne({ type: new RegExp(ctx.session.buySteel.type, 'i'), status: 'active' });
+        if (available) {
+            ctx.reply('የጠየቁት የብረት አይነቶች እኛ ጋር ይገኛሉ ለማዘዝ በ 0960336138 ይደውሉልን');
+        } else {
+            ctx.reply('ይቅርታ የጠየቁት የብረት አይነት እኛ ጋር ለጊዜው የለም');
+        }
+        ctx.session.action = null;
+    }
+
+    // --- 🔹 ማሽነሪ ክፍል ---
+    else if (action === 'REG_MACHINERY_1') {
+        ctx.session.machineryData = { type: text };
+        ctx.session.action = 'REG_MACHINERY_2'; 
+        ctx.reply('2. የሚገኝበት አድራሻ ያስገቡ፡');
+    } else if (action === 'REG_MACHINERY_2') {
+        ctx.session.machineryData.address = text;
+        ctx.session.action = 'REG_MACHINERY_3'; 
+        ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
+    } else if (action === 'REG_MACHINERY_3') {
+        ctx.session.machineryData.phone = text;
+        ctx.session.machineryData.userId = userId;
+        ctx.session.action = 'REG_MACHINERY_4'; 
+        ctx.reply('4. የማሽነሪው የኪራይ ዋጋ ያስገቡ፡');
+    } else if (action === 'REG_MACHINERY_4') {
+        ctx.session.machineryData.price = text;
+        ctx.session.machineryData.status = 'active';
+        await MachineryLeasor.findOneAndUpdate({ userId }, ctx.session.machineryData, { upsert: true });
+        ctx.session.action = null;
+        ctx.reply('ማሽነሪዎ በትክክል ተመዝግቧል!', machineryLeasorInline);
+    }
+    else if (action === 'RENT_MACHINERY_1') {
+        ctx.session.rentMachinery = { type: text };
+        ctx.session.action = 'RENT_MACHINERY_2';
+        ctx.reply('2. ያሉበት አድራሻ ያስገቡ፡');
+    } else if (action === 'RENT_MACHINERY_2') {
+        ctx.session.rentMachinery.address = text;
+        ctx.session.action = 'RENT_MACHINERY_3';
+        ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
+    } else if (action === 'RENT_MACHINERY_3') {
+        const available = await MachineryLeasor.findOne({ type: new RegExp(ctx.session.rentMachinery.type, 'i'), status: 'active' });
+        if (available) {
+            ctx.reply('የጠየቁት የማሽነሪ አይነት እኛ ጋር ይገኛል ማሽነሪውን ለመከራየት በ0960336138 ይደውሉልን');
+        } else {
+            ctx.reply('ይቅርታ የጠየቁት የማሽነሪ አይነት እኛ ጋር አይገኝም');
+        }
+        ctx.session.action = null;
+    }
+});
+
+// --- 🔘 የውስጥ በተኖች አሠራር ---
+bot.action('cement_active', async (ctx) => {
+    await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
+    ctx.reply('ሁኔታዎ ወደ [አለ] ተቀይሯል።'); ctx.answerCbQuery();
+});
+bot.action('cement_off', async (ctx) => {
+    await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' });
+    ctx.reply('ሁኔታዎ ወደ [የለም] ተቀይሯል።'); ctx.answerCbQuery();
+});
+bot.action('cement_re_reg', (ctx) => {
+    ctx.session.action = 'REG_CEMENT_1';
+    ctx.reply('የሲሚንቶ አይነት ያስገቡ፡'); ctx.answerCbQuery();
+});
+bot.action('cement_update_price', (ctx) => {
+    ctx.session.action = 'UPDATE_CEMENT_PRICE';
+    ctx.reply('አዲሱን የአንድ ኩንታል ዋጋ ያስገቡ፡'); ctx.answerCbQuery();
+});
+
+bot.action('steel_active', async (ctx) => {
+    await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
+    ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery();
+});
+bot.action('steel_off', async (ctx) => {
+    await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' });
+    ctx.reply('የብረት ምርትዎ [የለም] ተደርጓል።'); ctx.answerCbQuery();
+});
+bot.action('steel_update_price', (ctx) => {
+    ctx.session.action = 'UPDATE_STEEL_PRICE';
+    ctx.reply('አዲሱን የብረት ዋጋ ያስገቡ፡'); ctx.answerCbQuery();
+});
+
+bot.action('machinery_active', async (ctx) => {
+    await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
+    ctx.reply('ማሽነሪዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery();
+});
+bot.action('machinery_off', async (ctx) => {
+    await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' });
+    ctx.reply('ማሽነሪዎ [የለም] ተደርጓል።'); ctx.answerCbQuery();
+});
+
+// --- የአድሚን ማጥፊያ ዝርዝር በተኖች ---
+bot.action('adm_manage_cement', async (ctx) => {
+    try {
+        const sellers = await CementSeller.find({});
+        if (sellers.length === 0) return ctx.reply('🧱 ምንም የተመዘገበ የሲሚንቶ ሻጭ የለም።');
+        
+        const buttons = sellers.map(s => [
+            Markup.button.callback(`🧱 ${s.companyName || 'ሲሚንቶ'} (${s.type})`, 'none'),
+            Markup.button.callback('❌ ሰርዝ', `del_cem_${s._id}`)
+        ]);
+        ctx.reply('ለማጥፋት ❌ ሰርዝ የሚለውን ይጫኑ፦', Markup.inlineKeyboard(buttons));
+    } catch (e) { console.error(e); }
+    ctx.answerCbQuery();
+});
+
+bot.action('adm_manage_truck', async (ctx) => {
+    try {
+        const trucks = await TruckLeasor.find({});
+        if (trucks.length === 0) return ctx.reply('🚚 ምንም የተመዘገበ መኪና የለም።');
+        
+        const buttons = trucks.map(t => [
+            Markup.button.callback(`🚚 ታርጋ፦ ${t.plate} (${t.type})`, 'none'),
+            Markup.button.callback('❌ ሰርዝ', `del_trk_${t._id}`)
+        ]);
+        ctx.reply('ለማጥፋት ❌ ሰርዝ የሚለውን ይጫኑ፦', Markup.inlineKeyboard(buttons));
+    } catch (e) { console.error(e); }
+    ctx.answerCbQuery();
+});
+
+bot.action('adm_manage_steel', async (ctx) => {
+    try {
+        const steels = await SteelSeller.find({});
+        if (steels.length === 0) return ctx.reply('🟥 ምንም የተመዘገበ የብረት ሻጭ የለም።');
+        
+        const buttons = steels.map(s => [
+            Markup.button.callback(`🟥 አይነት፦ ${s.type}`, 'none'),
+            Markup.button.callback('❌ ሰርዝ', `del_stl_${s._id}`)
+        ]);
+        ctx.reply('ለማጥፋት ❌ ሰርዝ የሚለውን ይጫኑ፦', Markup.inlineKeyboard(buttons));
+    } catch (e) { console.error(e); }
+    ctx.answerCbQuery();
+});
+
+// --- 🔥 የተስተካከሉ የማጥፊያ ተግባራት (Fix CastError Regex) ---
+bot.action(/^del_cem_(.+)$/, async (ctx) => {
+    try {
+        await CementSeller.findByIdAndDelete(ctx.match[1]);
+        ctx.reply('🧱 የሲሚንቶ መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
+    } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
+    ctx.answerCbQuery();
+});
+
+bot.action(/^del_trk_(.+)$/, async (ctx) => {
+    try {
+        await TruckLeasor.findByIdAndDelete(ctx.match[1]);
+        ctx.reply('🚚 የመኪናው መረጃ ከዳታቤዝ ላይ ተሰርዟል!');
+    } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
+    ctx.answerCbQuery();
+});
+
+bot.action(/^del_stl_(.+)$/, async (ctx) => {
+    try {
+        await SteelSeller.findByIdAndDelete(ctx.match[1]);
+        ctx.reply('🟥 የብረት መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
+    } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
+    ctx.answerCbQuery();
+});
+
+bot.action('none', (ctx) => ctx.answerCbQuery());
+
+// --- 🌐 Render ፖርት ማስከፈቻ የዌብ ሰርቨር ---
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is Running!');
+}).listen(PORT);
+
+bot.launch().then(() => console.log('ቦቱ አሁን ንፁህ ነው፤ አድሚን ፓናሉም በትክክል እየሰራ ነው!'));
+
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
