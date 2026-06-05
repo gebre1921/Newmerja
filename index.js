@@ -65,7 +65,6 @@ bot.command('admin_panel', async (ctx) => {
         return ctx.reply('ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!');
     }
     
-    // የአድሚን ፓናል ሲመጣ የቀድሞ የፅሁፍ ምዝገባ የነበረውን ሁኔታ ሙሉ በሙሉ ያጸዳል
     ctx.session.action = null;
     
     const adminMenu = Markup.inlineKeyboard([
@@ -163,7 +162,6 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
 bot.on('text', async (ctx, next) => {
     const text = ctx.message.text;
     
-    // 🔥 ትክክለኛው መከላከያ፦ የተላከው ፅሁፍ በ '/' የሚጀምር ትዕዛዝ ከሆነ፣ ከዚህ ፍሰት ወጥቶ ወደ ትክክለኛው Command Handler እንዲያልፍ ያደርጋል
     if (text.startsWith('/')) {
         return next();
     }
@@ -243,7 +241,7 @@ bot.on('text', async (ctx, next) => {
             { upsert: true }
         );
         ctx.session.action = null;
-        ctx.reply('መኪናዎ በትክክል ተመዝግቧል! ፈላጊ ሲኖር እናሳውቆታለን።');
+        ctx.reply('መኪናዎ በትክክል ተመዝግቧል! ፈላጊ ሲኖር እናሳቆታለን።');
     }
     else if (action === 'RENT_TRUCK_1') {
         ctx.session.rentTruck = { type: text };
@@ -295,120 +293,3 @@ bot.on('text', async (ctx, next) => {
     }
     else if (action === 'UPDATE_STEEL_PRICE') {
         await SteelSeller.findOneAndUpdate({ userId }, { price: text });
-        ctx.reply(`የብረት ዋጋዎ ወደ ${text} ብር ተሻሽሏል!`);
-        ctx.session.action = null;
-    }
-    else if (action === 'BUY_STEEL_1') {
-        ctx.session.buySteel = { type: text };
-        ctx.session.action = 'BUY_STEEL_2';
-        ctx.reply('2. ያሉበት ቦታ(አድራሻ) ያስገቡ፡');
-    } else if (action === 'BUY_STEEL_2') {
-        ctx.session.buySteel.address = text;
-        ctx.session.action = 'BUY_STEEL_3';
-        ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
-    } else if (action === 'BUY_STEEL_3') {
-        const available = await SteelSeller.findOne({ type: new RegExp(ctx.session.buySteel.type, 'i'), status: 'active' });
-        if (available) {
-            ctx.reply('የጠየቁት የብረት አይነቶች እኛ ጋር ይገኛሉ ለማዘዝ በ 0960336138 ይደውሉልን');
-        } else {
-            ctx.reply('ይቅርታ የጠየቁት የብረት አይነት እኛ ጋር ለጊዜው የለም');
-        }
-        ctx.session.action = null;
-    }
-
-    // --- 🔹 ማሽነሪ ክፍል ---
-    else if (action === 'REG_MACHINERY_1') {
-        ctx.session.machineryData = { type: text };
-        ctx.session.action = 'REG_MACHINERY_2'; 
-        ctx.reply('2. የሚገኝበት አድራሻ ያስገቡ፡');
-    } else if (action === 'REG_MACHINERY_2') {
-        ctx.session.machineryData.address = text;
-        ctx.session.action = 'REG_MACHINERY_3'; 
-        ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
-    } else if (action === 'REG_MACHINERY_3') {
-        ctx.session.machineryData.phone = text;
-        ctx.session.machineryData.userId = userId;
-        ctx.session.action = 'REG_MACHINERY_4'; 
-        ctx.reply('4. የማሽነሪው የኪራይ ዋጋ ያስገቡ፡');
-    } else if (action === 'REG_MACHINERY_4') {
-        ctx.session.machineryData.price = text;
-        ctx.session.machineryData.status = 'active';
-        await MachineryLeasor.findOneAndUpdate({ userId }, ctx.session.machineryData, { upsert: true });
-        ctx.session.action = null;
-        ctx.reply('ማሽነሪዎ በትክክል ተመዝግቧል!', machineryLeasorInline);
-    }
-    else if (action === 'RENT_MACHINERY_1') {
-        ctx.session.rentMachinery = { type: text };
-        ctx.session.action = 'RENT_MACHINERY_2';
-        ctx.reply('2. ያሉበት አድራሻ ያስገቡ፡');
-    } else if (action === 'RENT_MACHINERY_2') {
-        ctx.session.rentMachinery.address = text;
-        ctx.session.action = 'RENT_MACHINERY_3';
-        ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
-    } else if (action === 'RENT_MACHINERY_3') {
-        const available = await MachineryLeasor.findOne({ type: new RegExp(ctx.session.rentMachinery.type, 'i'), status: 'active' });
-        if (available) {
-            ctx.reply('የጠየቁት የማሽነሪ አይነት እኛ ጋር ይገኛል ማሽነሪውን ለመከራየት በ0960336138 ይደውሉልን');
-        } else {
-            ctx.reply('ይቅርታ የጠየቁት የማሽነሪ አይነት እኛ ጋር አይገኝም');
-        }
-        ctx.session.action = null;
-    }
-});
-
-// --- 🔘 የውስጥ በተኖች አሠራር ---
-bot.action('cement_active', async (ctx) => {
-    await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
-    ctx.reply('ሁኔታዎ ወደ [አለ] ተቀይሯል።'); ctx.answerCbQuery();
-});
-bot.action('cement_off', async (ctx) => {
-    await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' });
-    ctx.reply('ሁኔታዎ ወደ [የለም] ተቀይሯል።'); ctx.answerCbQuery();
-});
-bot.action('cement_re_reg', (ctx) => {
-    ctx.session.action = 'REG_CEMENT_1';
-    ctx.reply('የሲሚንቶ አይነት ያስገቡ፡'); ctx.answerCbQuery();
-});
-bot.action('cement_update_price', (ctx) => {
-    ctx.session.action = 'UPDATE_CEMENT_PRICE';
-    ctx.reply('አዲሱን የአንድ ኩንታል ዋጋ ያስገቡ፡'); ctx.answerCbQuery();
-});
-
-bot.action('steel_active', async (ctx) => {
-    await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
-    ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery();
-});
-bot.action('steel_off', async (ctx) => {
-    await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' });
-    ctx.reply('የብረት ምርትዎ [የለም] ተደርጓል።'); ctx.answerCbQuery();
-});
-bot.action('steel_update_price', (ctx) => {
-    ctx.session.action = 'UPDATE_STEEL_PRICE';
-    ctx.reply('አዲሱን የብረት ዋጋ ያስገቡ፡'); ctx.answerCbQuery();
-});
-
-bot.action('machinery_active', async (ctx) => {
-    await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
-    ctx.reply('ማሽነሪዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery();
-});
-bot.action('machinery_off', async (ctx) => {
-    await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' });
-    ctx.reply('ማሽነሪዎ [የለም] ተደርጓል።'); ctx.answerCbQuery();
-});
-
-// --- የአድሚን ማጥፊያ ዝርዝር በተኖች ---
-bot.action('adm_manage_cement', async (ctx) => {
-    const sellers = await CementSeller.find({});
-    if (sellers.length === 0) return ctx.reply('🧱 ምንም የተመዘገበ የሲሚንቶ ሻጭ የለም።');
-    
-    const buttons = sellers.map(s => [
-        Markup.button.callback(`🧱 ${s.companyName || 'ሲሚንቶ'} (${s.type})`, 'none'),
-        Markup.button.callback('❌ ሰርዝ', `adm_del_cement_${s._id}`)
-    ]);
-    ctx.reply('ለማጥፋት ❌ ሰርዝ የሚለውን ይጫኑ፦', Markup.inlineKeyboard(buttons));
-    ctx.answerCbQuery();
-});
-
-bot.action('adm_manage_truck', async (ctx) => {
-    const trucks = await TruckLeasor.find({});
-    if (trucks.length === 0) return ctx.reply('🚚 ምንም የተመዘገበ መኪና የለም።');
