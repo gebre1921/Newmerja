@@ -255,6 +255,7 @@ bot.on('text', async (ctx, next) => {
         const cleanRoute = ctx.session.rentTruck.route.toLowerCase();
         let searchRegex = (cleanRoute.includes("gondar") || cleanRoute.includes("ጎንደር")) ? new RegExp("(gondar|ጎንደር)", "i") : new RegExp(ctx.session.rentTruck.route, "i");
 
+        // 🔥 1. እዚህ ጋር በትንሹ የታዘዘውን መኪና በመምረጥ ፍትሃዊ (Fair) የስራ ክፍፍል ያደርጋል (.sort({ rentedCount: 1 }))
         const foundTruck = await TruckLeasor.findOne({ 
             type: new RegExp(ctx.session.rentTruck.type, 'i'),
             route: searchRegex, 
@@ -263,6 +264,8 @@ bot.on('text', async (ctx, next) => {
 
         if (foundTruck) {
             ctx.reply(`የሚፈልጉት መኪና ይገኛል!\nየመኪናው አይነት፡ ${foundTruck.type}\nታርጋ ቁጥር፡ ${foundTruck.plate}\nለማዘዝ በ 0960336138 ይደውሉልን`);
+            
+            // 🔥 2. የተመረጠው መኪና የስራ ቆጣሪው በ 1 ከፍ ይላል፤ በሚቀጥለው ጊዜ ሌላኛው መኪና ቅድሚያ እንዲያገኝ
             await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $inc: { rentedCount: 1 } });
         } else {
             ctx.reply('በዚህ የጉዞ መስመር የሚጓዝ መኪና መረጃ እስካሁን አልደረሰንም መረጃው እንደደረሰን እንደውላለን');
@@ -341,7 +344,7 @@ bot.on('text', async (ctx, next) => {
         ctx.reply('2. ያሉበት አድራሻ ያስገቡ፡');
     } else if (action === 'RENT_MACHINERY_2') {
         ctx.session.rentMachinery.address = text;
-        ctx.session.action = 'RENT_MACHINERY_3';
+        ctx.session.rentMachinery.action = 'RENT_MACHINERY_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'RENT_MACHINERY_3') {
         const available = await MachineryLeasor.findOne({ type: new RegExp(ctx.session.rentMachinery.type, 'i'), status: 'active' });
