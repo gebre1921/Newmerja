@@ -22,7 +22,18 @@ mongoose.connect(MONGO_URI)
 
 // --- 📊 የዳታቤዝ ሰንጠረዦች መዋቅር (Database Models) ---
 const CementSeller = mongoose.model('CementSeller', { userId: Number, type: String, location: String, companyName: String, phone: String, price: Number, status: String });
-const TruckLeasor = mongoose.model('TruckLeasor', { userId: Number, type: String, plate: String, route: String, phone: String, status: String });
+
+// 🚚 ማሻሻያ፡ ለእያንዳንዱ መኪና 'rentedCount' (የተከራየበት ብዛት) ጨምረናል
+const TruckLeasor = mongoose.model('TruckLeasor', { 
+    userId: Number, 
+    type: String, 
+    plate: String, 
+    route: String, 
+    phone: String, 
+    status: String,
+    rentedCount: { type: Number, default: 0 } // አዲስ የተጨመረ የፍትሃዊነት መቆጣጠሪያ
+});
+
 const SteelSeller = mongoose.model('SteelSeller', { userId: Number, type: String, address: String, phone: String, price: String, status: String });
 const MachineryLeasor = mongoose.model('MachineryLeasor', { userId: Number, type: String, address: String, phone: String, price: String, status: String });
 
@@ -180,7 +191,7 @@ bot.on('text', async (ctx) => {
         ctx.session.action = null;
     }
 
-    // መкиና ሂደት
+    // መኪና ሂደት
     else if (action === 'REG_TRUCK_1') {
         ctx.session.truckData = { type: text };
         ctx.session.action = 'REG_TRUCK_2';
@@ -197,6 +208,7 @@ bot.on('text', async (ctx) => {
         ctx.session.truckData.phone = text;
         ctx.session.truckData.userId = userId;
         ctx.session.truckData.status = 'active';
+        ctx.session.truckData.rentedCount = 0; // መጀመሪያ ሲመዘገብ 0 ነው
         await TruckLeasor.findOneAndUpdate({ userId }, ctx.session.truckData, { upsert: true });
         ctx.session.action = null;
         ctx.reply('መረጃዎ በትክክል ደርሶናል ፈላጊ ሲኖር እንደውልለዎታለን', truckLeasorInline);
@@ -206,18 +218,41 @@ bot.on('text', async (ctx) => {
         ctx.reply(`የጉዞ መስመርዎ ወደ "${text}" ተቀይሯል!`);
         ctx.session.action = null;
     }
+    
+    // 🚚 ማሻሻያ፡ መኪና ለመከራየት ፍለጋ ላይ ፍትሃዊ የ"Round-Robin" ተራ ዘዴ ተተክሏል
     else if (action === 'RENT_TRUCK_1') {
         ctx.session.rentTruck = { type: text };
         ctx.session.action = 'RENT_TRUCK_2';
-        ctx.reply('2. የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ጎንደር)፡');
+        ctx.reply('2. የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ጎንደር ወይም Addis Ababa to Gondar)፡');
     } else if (action === 'RENT_TRUCK_2') {
         ctx.session.rentTruck.route = text;
         ctx.session.action = 'RENT_TRUCK_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'RENT_TRUCK_3') {
-        const foundTruck = await TruckLeasor.findOne({ route: new RegExp(ctx.session.rentTruck.route, 'i'), status: 'active' });
+        
+        // 1. የገባውን የከተማ ጽሑፍ ከአማርኛ እና እንግሊዘኛ ቃላት ጋር አጣጥሞ ለመፈለግ RegExp ማዘጋጀት
+        const cleanRoute = ctx.session.rentTruck.route.toLowerCase();
+        let searchRegex;
+        
+        if (cleanRoute.includes("gondar") || cleanRoute.includes("ጎንደር")) {
+            searchRegex = new RegExp("(gondar|ጎንደር)", "i");
+        } else {
+            searchRegex = new RegExp(ctx.session.rentTruck.route, "i");
+        }
+
+        // 2. ፍትሃዊ አሰራር፡ 'rentedCount: 1' ማለት በትንሹ የተከራየው መኪና መጀመሪያ ይመረጥ ማለት ነው
+        const foundTruck = await TruckLeasor.findOne({ 
+            type: new RegExp(ctx.session.rentTruck.type, 'i'),
+            route: searchRegex, 
+            status: 'active' 
+        }).sort({ rentedCount: 1 }); // እዚህ ጋር በትንሹ የተከራየው ይመረጣል
+
         if (foundTruck) {
             ctx.reply(`የሚፈልጉት መኪና ይገኛል!\nየመኪናው አይነት፡ ${foundTruck.type}\nታርጋ ቁጥር፡ ${foundTruck.plate}\nለማዘዝ በ 0960336138 ይደውሉልን`);
+            
+            // 3. የተመረጠው መኪና እድል ስላገኘ፣ የዳታቤዝ ቁጥሩን በ +1 እናሳድገዋለን (ለሚቀጥለው ሰው ተራው እንዲዞር)
+            await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $inc: { rentedCount: 1 } });
+            
         } else {
             ctx.reply('በዚህ የጉዞ መስመር የሚጓዝ መኪና መረጃ እስካሁን አልደረሰንም መረጃው እንደደረሰን እንደውላለን');
         }
@@ -295,7 +330,7 @@ bot.on('text', async (ctx) => {
         ctx.reply('2. ያሉበት አድራሻ ያስገቡ፡');
     } else if (action === 'RENT_MACHINERY_2') {
         ctx.session.rentMachinery.address = text;
-        ctx.session.action = 'RENT_MACHINERY_3';
+        ctx.session.rentMachinery.userId = userId;
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'RENT_MACHINERY_3') {
         const available = await MachineryLeasor.findOne({ type: new RegExp(ctx.session.rentMachinery.type, 'i'), status: 'active' });
