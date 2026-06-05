@@ -2,7 +2,7 @@ const { Telegraf, Markup, session } = require('telegraf');
 const http = require('http');
 const mongoose = require('mongoose'); // ማነጎዲቢን ለማገናኘት
 
-// --- 🛠️ የቶክን ማጽጃ ክፍል (Render ላይ የሚፈጠርን ስህተት ለመከላከል) ---
+// --- 🛠️ የቶክን ማጽጃ ክፍል ---
 const rawToken = process.env.BOT_TOKEN;
 const BOT_TOKEN = rawToken ? rawToken.trim().replace(/['"]/g, '') : undefined;
 const MONGO_URI = process.env.MONGO_URI;
@@ -12,7 +12,6 @@ if (!BOT_TOKEN || !MONGO_URI) {
     process.exit(1);
 }
 
-// ቶክኑ በትክክል መነቡን በሎግ ላይ ለማረጋገጥ
 console.log(`-> ቶክኑ በተሳካ ሁኔታ ተነቧል! ርዝመት: ${BOT_TOKEN.length} ቁምፊዎች።`);
 
 // --- 🗄️ ከማንጎ ዲቢ (MongoDB) ጋር ማገናኛ ---
@@ -20,10 +19,9 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log("ማንጎ ዲቢ ዳታቤዝ በተሳካ ሁኔታ ተገናኝቷል!"))
     .catch(err => console.error("የዳታቤዝ ግንኙነት ስህተት:", err));
 
-// --- 📊 የዳታቤዝ ሰንጠረዦች መዋቅር (Database Models) ---
+// --- 📊 የዳታቤዝ ሰንጠረዦች መዋቅር ---
 const CementSeller = mongoose.model('CementSeller', { userId: Number, type: String, location: String, companyName: String, phone: String, price: Number, status: String });
 
-// 🚚 መዋቅር፦ ለእያንዳንዱ መኪና 'rentedCount' (የተከራየበት ብዛት) አብሮ ይይዛል
 const TruckLeasor = mongoose.model('TruckLeasor', { 
     userId: Number, 
     type: String, 
@@ -59,11 +57,10 @@ const cementSellerInline = Markup.inlineKeyboard([
     [Markup.button.callback('➕ አዲስ ለመመዝገብ', 'cement_re_reg'), Markup.button.callback('💰 ዋጋ ለማሻሻል', 'cement_update_price')]
 ]);
 
-// 🚚 ማሻሻያ፦ የመኪና ባለቤቶች የራሳቸውን መኪና ብቻ የሚሰርዙበት በተን ተጨምሯል
+// 🚚 ማሻሻያ፦ የመኪና ባለቤቶች ራሳቸው እንዳይሰርዙ የነበረው 'መኪናዬን ሰርዝ' በተን ተወግዷል!
 const truckLeasorInline = Markup.inlineKeyboard([
     [Markup.button.callback('✅ አለ', 'truck_active'), Markup.button.callback('❌ የለም', 'truck_off')],
-    [Markup.button.callback('🔄 የጉዞ መስመር ለመቀየር', 'truck_change_route')],
-    [Markup.button.callback('🗑️ መኪናዬን ሙሉ በሙሉ ሰርዝ', 'truck_delete_own')]
+    [Markup.button.callback('🔄 የጉዞ መስመር ለመቀየር', 'truck_change_route')]
 ]);
 
 const steelSellerInline = Markup.inlineKeyboard([
@@ -238,7 +235,6 @@ bot.on('text', async (ctx) => {
             searchRegex = new RegExp(ctx.session.rentTruck.route, "i");
         }
 
-        // ፍትሃዊ አሰራር፡ በትንሹ የተከራየውን መኪና ቅድሚያ ይሰጣል
         const foundTruck = await TruckLeasor.findOne({ 
             type: new RegExp(ctx.session.rentTruck.type, 'i'),
             route: searchRegex, 
@@ -338,7 +334,7 @@ bot.on('text', async (ctx) => {
     }
 });
 
-// --- 🔘 የውስጥ በተኖች አሠራር (Inline Callback Actions) ---
+// --- 🔘 የውስጥ በተኖች አሠራር ---
 bot.action('cement_active', async (ctx) => {
     await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
     ctx.reply('ሁኔታዎ ወደ [አለ] ተቀይሯል።');
@@ -376,17 +372,6 @@ bot.action('truck_change_route', (ctx) => {
     ctx.answerCbQuery();
 });
 
-// 🗑️ አከራዩ የራሱን መኪና ብቻ መርጦ ከዳታቤዝ እንዲሰርዝ የሚያደርግ አሠራር
-bot.action('truck_delete_own', async (ctx) => {
-    const deletedCar = await TruckLeasor.findOneAndDelete({ userId: ctx.from.id });
-    if (deletedCar) {
-        ctx.reply(`ታርጋ ቁጥር "${deletedCar.plate}" የሆነው መኪናዎ ከሲስተሙ ላይ ሙሉ በሙሉ ተሰርዟል! 🗑️`);
-    } else {
-        ctx.reply('በዚህ አካውንት የተመዘገበ መኪና ዳታቤዝ ውስጥ አልተገኘም!');
-    }
-    ctx.answerCbQuery();
-});
-
 bot.action('steel_active', async (ctx) => {
     await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
     ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።');
@@ -414,28 +399,61 @@ bot.action('machinery_off', async (ctx) => {
     ctx.answerCbQuery();
 });
 
-// --- 👑 የአድሚን ትዕዛዛት (Admin Commands) ---
-// ለአንተ ብቻ፡ ማንኛውንም መኪና በታርጋ ቁጥር መርጠህ ለመደለት የምትጠቀምበት ልዩ ትዕዛዝ
-bot.command('admin_delete', async (ctx) => {
+// --- 👑 አዲሱ የአድሚን መቆጣጠሪያ ፓናል (Admin Dashboard) ---
+
+// 1. ሁሉንም መኪኖች በአዝራር (Inline Button) መልክ ለአንተ ብቻ የሚያመጣ ልዩ ትዕዛዝ
+bot.command('admin_panel', async (ctx) => {
     if (ctx.from.id !== 7423347375) { 
         return ctx.reply('ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!');
     }
 
-    const messageText = ctx.message.text;
-    const plateNumber = messageText.split(' '); 
-
-    if (!plateNumber) {
-        return ctx.reply('እባክዎ የሚደለተውን መኪና ታርጋ ቁጥር አብረው ይጻፉ።\nምሳሌ፦ /admin_delete AA3B4567');
+    const trucks = await TruckLeasor.find({});
+    if (trucks.length === 0) {
+        return ctx.reply('👑 አድሚን፡ በዳታቤዝ ውስጥ የተመዘገበ ምንም መኪማ የለም።');
     }
 
-    const deleted = await TruckLeasor.findOneAndDelete({ plate: new RegExp(plateNumber, 'i') });
+    const buttons = trucks.map(truck => {
+        // ለእያንዳንዱ መኪና ታርጋውን እያሳየ አጠገቡ ላይ የ "X" ማጥፊያ ቁልፍ ያደርጋል
+        return [
+            Markup.button.callback(`🚚 ${truck.plate} (${truck.type})`, 'none'),
+            Markup.button.callback('❌ ሰርዝ', `admin_del_${truck._id}`)
+        ];
+    });
+
+    ctx.reply('👑 እንኳን ወደ አድሚን ማጥፊያ ፓናል በሰላም መጡ። ማጥፋት የሚፈልጉትን መኪና ❌ የሚለውን ይንኩ፡', Markup.inlineKeyboard(buttons));
+});
+
+// 2. የ "❌ ሰርዝ" በተን ሲነካ በቀጥታ ከማንጎ ዲቢ አጥፍቶ በተኖቹን የሚያድስ አሠራር
+bot.action(/^admin_del_(.+)$/, async (ctx) => {
+    if (ctx.from.id !== 7423347375) { 
+        return ctx.answerCbQuery('ፈቃድ የለዎትም!', { show_alert: true });
+    }
+
+    const truckId = ctx.match;
+    const deleted = await TruckLeasor.findByIdAndDelete(truckId);
 
     if (deleted) {
-        ctx.reply(`👑 አድሚን፦ ታርጋ ቁጥር "${plateNumber}" የሆነው መኪና ከዳታቤዝ ላይ በግዳጅ ተሰርዟል! 🗑️`);
+        ctx.answerCbQuery(`ታርጋ ${deleted.plate} ተሰርዟል!`, { show_alert: false });
+        
+        // ከተሰረዘ በኋላ የተረፉትን መኪኖች ዝርዝር በራሱ ጊዜ አድሶ ያሳያል
+        const remainingTrucks = await TruckLeasor.find({});
+        if (remainingTrucks.length === 0) {
+            return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች ከዳታቤዝ ላይ ተደምስሰዋል።');
+        }
+
+        const nextButtons = remainingTrucks.map(t => [
+            Markup.button.callback(`🚚 ${t.plate} (${t.type})`, 'none'),
+            Markup.button.callback('❌ ሰርዝ', `admin_del_${t._id}`)
+        ]);
+
+        ctx.editMessageText('👑 መኪናው በተሳካ ሁኔታ ተሰርዟል። የቀሩት ዝርዝር፡', Markup.inlineKeyboard(nextButtons));
     } else {
-        ctx.reply(`ይቅርታ፣ "${plateNumber}" የሚል ታርጋ ያለው መኪና ዳታቤዝ ውስጥ አልተገኘም!`);
+        ctx.answerCbQuery('ይህ መኪና ቀድሞ ጠፍቷል!', { show_alert: true });
     }
 });
+
+// አዶሚኑ ምንም እንዳይፈጠር ዝም ብሎ ታርጋውን ሲነካ የሚዘጋ Callback
+bot.action('none', (ctx) => ctx.answerCbQuery());
 
 // --- 🌐 Render ፖርት ማስከፈቻ የዌብ ሰርቨር ---
 const PORT = process.env.PORT || 3000;
