@@ -64,7 +64,7 @@ const cementSellerInline = Markup.inlineKeyboard([
     [Markup.button.callback('➕ አዲስ ለመመዝገብ', 'cement_re_reg'), Markup.button.callback('💰 ዋጋ ለማሻሻል', 'cement_update_price')]
 ]);
 
-// 🚚 ለባለቤቶቹ የሚታይ (የሰርዝ በተን የሌለው)
+// 🚚 ለባለቤቶቹ የሚታይ (የሰርዝ በተን የሌለው ንጹህ ሜኑ)
 const truckLeasorInline = Markup.inlineKeyboard([
     [Markup.button.callback('✅ አለ', 'truck_active'), Markup.button.callback('❌ የለም', 'truck_off')],
     [Markup.button.callback('🔄 የጉዞ መስመር ለመቀየር', 'truck_change_route')]
@@ -102,8 +102,8 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     const session = getSession(ctx.from.id);
     const existing = await TruckLeasor.findOne({ userId: ctx.from.id });
     if (existing) {
-        // ✨ ማስተካከያ፦ እዚህ ጋር ለባለቤቱ ትክክለኛ መረጃ ብቻ እንዲያሳይ ተደርጓል!
-        ctx.reply(`ቀድሞውኑ የተመዘገበ መኪና አለዎት።\nየመኪናው አይነት፡ ${existing.type}\nታርጋ ቁጥር፡ ${existing.plate}\nየአሁኑ መስመር፡ ${existing.route}\n\nሁኔታዎን ለመቀየር ከታች ካሉት በተኖች ይምረጡ፡`, truckLeasorInline);
+        // ✨ ማስተካከያ፦ እዚህ ጋር ለባለቤቱ የሚመጣው ዝባዝንኬ ፅሁፍ ሙሉ በሙሉ ጠፍቶ በንጹህ ሁኔታ ተተክቷል!
+        ctx.reply(`ቀድሞውኑ የተመዘገበ መኪና አለዎት።\nየመኪናው አይነት፡ ${existing.type}\nታርጋ ቁጥር፡ ${existing.plate}\nየአሁኑ የጉዞ መስመር፡ ${existing.route}\n\nሁኔታዎን ለመቀየር ከታች ይጠቀሙ፦`, truckLeasorInline);
     } else {
         session.action = 'REG_TRUCK_1';
         ctx.reply('ምን አይነት መኪና እንደሆነ ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
@@ -156,7 +156,7 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
 bot.on('text', async (ctx) => {
     const text = ctx.message.text;
 
-    // ✨ ማስተካከያ፦ የአድሚን ትዕዛዝ በስህተት እዚህ ውስጥ እንዳያልፍ መከላከያ
+    // የአድሚን ወይም የሌላ እዝዝ ምልክት (/) ካለው እዚህ እንዳያልፍ መከላከያ
     if (text.startsWith('/')) return;
 
     const userId = ctx.from.id;
@@ -424,32 +424,32 @@ bot.action('machinery_off', async (ctx) => {
     ctx.answerCbQuery();
 });
 
-// --- 👑 የአድሚን መቆጣጠሪያ ፓናል ---
+// --- 👑 የአድሚን መቆጣጠሪያ ፓናል (እርስዎ የሚፈልጉትን በታርጋ መርጠው የሚያጠፉበት) ---
 bot.command('admin_panel', async (ctx) => {
     const adminId = 7423347375; 
     const currentUserId = ctx.from.id;
 
     if (currentUserId !== adminId) { 
-        return ctx.reply(`⛔ ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!\nየእርስዎ ID: ${currentUserId}`);
+        return ctx.reply(`⛔ ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!`);
     }
 
     try {
         const trucks = await TruckLeasor.find({});
         if (trucks.length === 0) {
-            return ctx.reply('👑 አድሚን፡ በዳታቤዝ ውስጥ የተመዘገበ ምንም መኪና የለም።');
+            return ctx.reply('👑 አድሚን፡ በዳታቤዝ ውስጥ ምንም የተመዘገበ መኪና የለም።');
         }
 
-        // ✨ ማስተካከያ፦ እያንዳንዱን መኪና በአዝራር መልክ ያመጣል
+        // ✨ ማስተካከያ፦ እያንዳንዱን መኪና በታርጋ ቁጥሩ እና በአይነቱ ዝርዝር አድርጎ ያቀርባል
         const buttons = trucks.map(truck => {
             return [
-                Markup.button.callback(`🚚 ${truck.plate || 'ታርጋ የሌለው'} (${truck.type || 'ያልታወቀ'})`, 'none'),
-                Markup.button.callback('❌ ከዳታቤዝ ሰርዝ', `admin_del_${truck._id}`)
+                Markup.button.callback(`📇 ታርጋ፦ ${truck.plate || 'የለም'} (${truck.type || 'FSR'})`, 'none'),
+                Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `admin_del_${truck._id}`)
             ];
         });
 
-        await ctx.reply('👑 የአድሚን ፓናል፤ ማጥፋት የሚፈልጉትን መኪና ❌ ይንኩ፡', Markup.inlineKeyboard(buttons));
+        await ctx.reply('👑 የአድሚን መቆጣጠሪያ ፓናል\n\nከዳታቤዝ (MongoDB) ሙሉ በሙሉ ማጥፋት የሚፈልጉትን መኪና "🗑️ ከዳታቤዝ ሰርዝ" የሚለውን ይጫኑ፡', Markup.inlineKeyboard(buttons));
     } catch (error) {
-        ctx.reply("❌ ዳታቤዝ ላይ ስህተት አጋጥሟል።");
+        ctx.reply("❌ ዳታቤዝ ላይ መረጃዎችን ማምጣት አልተቻለም።");
     }
 });
 
@@ -464,21 +464,23 @@ bot.action(/^admin_del_(.+)$/, async (ctx) => {
         const deleted = await TruckLeasor.findByIdAndDelete(truckId);
 
         if (deleted) {
-            ctx.answerCbQuery(`ታርጋ ${deleted.plate} ከዳታቤዝ ተሰርዟል!`);
+            ctx.answerCbQuery(`ታርጋ ቁጥር ${deleted.plate} በተሳካ ሁኔታ ጠፍቷል!`, { show_alert: true });
+            
+            // የተረፉትን መኪናዎች በድጋሚ ዘርዝሮ ያሳያል
             const remainingTrucks = await TruckLeasor.find({});
             if (remainingTrucks.length === 0) {
-                return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች ከዳታቤዝ ጠፍተዋል።');
+                return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች ከዳታቤዝ (MongoDB) ውስጥ በተሳካ ሁኔታ ተደምስሰዋል።');
             }
             const nextButtons = remainingTrucks.map(t => [
-                Markup.button.callback(`🚚 ${t.plate} (${t.type})`, 'none'),
-                Markup.button.callback('❌ ከዳታቤዝ ሰርዝ', `admin_del_${t._id}`)
+                Markup.button.callback(`📇 ታርጋ፦ ${t.plate} (${t.type})`, 'none'),
+                Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `admin_del_${t._id}`)
             ]);
-            ctx.editMessageText('👑 መኪናው ጠፍቷል። የቀሩት ዝርዝር፡', Markup.inlineKeyboard(nextButtons));
+            ctx.editMessageText('👑 መኪናው ጠፍቷል። በዳታቤዝ ውስጥ የቀሩት ዝርዝር፦', Markup.inlineKeyboard(nextButtons));
         } else {
-            ctx.answerCbQuery('ይህ መኪና ቀድሞ ጠፍቷል!', { show_alert: true });
+            ctx.answerCbQuery('ይህ መኪና አስቀድሞ ተሰርዟል!', { show_alert: true });
         }
     } catch (error) {
-        ctx.answerCbQuery('ስረዛው አልተሳካም!', { show_alert: true });
+        ctx.answerCbQuery('ከዳታቤዝ ላይ ማጥፋት አልተሳካም!', { show_alert: true });
     }
 });
 
