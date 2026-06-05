@@ -105,12 +105,22 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     const myTrucks = await TruckLeasor.find({ userId: ctx.from.id });
     
     if (myTrucks.length > 0) {
-        const buttons = myTrucks.map(t => [
-            Markup.button.callback(`🚚 ታርጋ፡ ${t.plate} (${t.status === 'active' ? '✅ ዝግጁ' : '❌ ስራ ላይ'})`, `manage_tr_${t._id}`)
-        ]);
+        let buttons = [];
+        
+        // 🛠️ ፊክስ፦ ለእያንዳንዱ መኪና ማስተዳደሪያ በተኖቹን እዚሁ ላይ በግልጽ እንዲመጡ ማድረግ
+        myTrucks.forEach(t => {
+            buttons.push([Markup.button.callback(`🚚 ታርጋ፦ ${t.plate} (${t.status === 'active' ? '✅ ዝግጁ' : '❌ ስራ ላይ'})`, 'none')]);
+            buttons.push([
+                Markup.button.callback('✅ ዝግጁ አድርግ', `tr_act_${t._id}`),
+                Markup.button.callback('❌ ስራ ላይ አድርግ', `tr_off_${t._id}`)
+            ]);
+            buttons.push([Markup.button.callback('📍 የጉዞ መስመር ቀይር', `tr_route_${t._id}`)]);
+            buttons.push([Markup.button.callback('-------------------------------------------', 'none')]);
+        });
+        
         buttons.push([Markup.button.callback('➕ አዲስ መኪና መዝግብ', 'truck_new_reg')]);
         
-        ctx.reply('የእርስዎ የተመዘገቡ መኪናዎች ዝርዝር ከዚህ በታች ይገኛል። ማስተካከል የሚፈልጉትን መኪና ይጫኑ፦', Markup.inlineKeyboard(buttons));
+        ctx.reply('የእርስዎ የተመዘገቡ መኪናዎች ዝርዝር እና ማስተዳደሪያ በተኖች ከዚህ በታች ይገኛሉ፦', Markup.inlineKeyboard(buttons));
     } else {
         ctx.session.action = 'REG_TRUCK_1';
         ctx.session.truckData = {};
@@ -184,7 +194,6 @@ function createSearchRegex(input) {
 
 // --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ (Text Handler) ---
 bot.on('text', async (ctx, next) => {
-    // 🛠️ ፊክስ፡ የ Render ሎግ ላይ የታየውን TypeError ሙሉ በሙሉ ለመከላከል የ Session ጥበቃን ማረጋገጥ
     if (!ctx.session) {
         ctx.session = {};
     }
@@ -352,7 +361,7 @@ bot.on('text', async (ctx, next) => {
     }
     else if (action === 'UPDATE_STEEL_PRICE') {
         await SteelSeller.findOneAndUpdate({ userId }, { price: text });
-        ctx.reply(`የብረት ዋጋዎ ወደ ${text} ብር ተሻሽሏል!`);
+        ctx.reply(`የብረት ዋጋዎ ወደ ${text} ብር ተሻшሏል!`);
         ctx.session.action = null;
     }
     else if (action === 'BUY_STEEL_1') {
@@ -409,7 +418,7 @@ bot.on('text', async (ctx, next) => {
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'RENT_MACHINERY_3') {
         if (!ctx.session.rentMachinery) ctx.session.rentMachinery = {};
-        ctx.session.rentMachinery.phone = text; // 🛠️ ፊክስ፡ እዚህ ጋር የነበረው የስም ስህተት ተስተካክሏል
+        ctx.session.rentMachinery.phone = text; 
         
         const searchRegex = createSearchRegex(ctx.session.rentMachinery.type);
         const available = await MachineryLeasor.findOne({ type: searchRegex, status: 'active' });
@@ -445,23 +454,6 @@ bot.action('truck_new_reg', (ctx) => {
     ctx.session.action = 'REG_TRUCK_1';
     ctx.session.truckData = {};
     ctx.reply('ለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
-    ctx.answerCbQuery();
-});
-
-bot.action(/^manage_tr_(.+)$/, async (ctx) => {
-    const truckId = ctx.match;
-    const truck = await TruckLeasor.findById(truckId);
-    if (!truck) return ctx.reply('ይቅርታ መኪናው አልተገኘም!');
-
-    const truckMenu = Markup.inlineKeyboard([
-        [
-            Markup.button.callback('✅ ዝግጁ (Active)', `tr_act_${truckId}`),
-            Markup.button.callback('❌ ስራ ላይ (Off)', `tr_off_${truckId}`)
-        ],
-        [Markup.button.callback('📍 የጉዞ መስመር ለመቀየር', `tr_route_${truckId}`)]
-    ]);
-
-    ctx.reply(`🚚 የመኪና ማስተዳደሪያ ፓናል\n\n• አይነት፦ ${truck.type}\n• ታርጋ፦ ${truck.plate}\n• የአሁን መስመር፦ ${truck.route}\n• የአሁን ሁኔታ፦ ${truck.status === 'active' ? '✅ ዝግጁ' : '❌ ስራ ላይ'}`, truckMenu);
     ctx.answerCbQuery();
 });
 
