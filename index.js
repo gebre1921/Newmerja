@@ -1,6 +1,7 @@
-const { Telegraf, Markup, session } = require('telegraf');
+const { Telegraf, Markup } = require('telegraf');
 const http = require('http');
 const mongoose = require('mongoose');
+const { MongooseSession } = require('telegraf-session-mongoose');
 
 // --- 🛠️ የቶክን ማጽጃ ክፍል ---
 const rawToken = process.env.BOT_TOKEN;
@@ -34,10 +35,14 @@ const TruckLeasor = mongoose.model('TruckLeasor', {
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// 🔥 ፊክስ፦ የሴሽን አስተማማኝነትን ለማረጋገጥ መደበኛውን session እንጠቀማለን
-bot.use(session());
+// 🔥 ፊክስ፦ የሰዎችን መረጃ ዳታቤዝ ውስጥ በቋሚነት ለማስቀመጥ የ Mongoose Session እንጠቀማለን
+const session = new MongooseSession({
+    collection: 'sessions', // በዳታቤዝህ ላይ 'sessions' የሚል አዲስ ሰንጠረዥ በራሱ ይፈጥራል
+    mongoose: mongoose
+});
+bot.use(session.middleware());
 
-// 🔥 ፊክስ፦ እያንዳንዱ ተጠቃሚ የራሱ ሴሽን በየኢንዴክሱ እንዲኖረው የሚያስገድድ Middleware
+// 🔥 ፊክስ፦ የትኛውም ተጠቃሚ በተን ሲነካ ሴሽኑ እንዳይበላሽ የሚያረጋግጥ Middleware
 bot.use((ctx, next) => {
     ctx.session = ctx.session || {};
     return next();
@@ -83,7 +88,8 @@ const cementSellerInline = Markup.inlineKeyboard([
 ]);
 
 bot.hears('🧱 ሲሚንቶ ለመሸጥ', async (ctx) => {
-    ctx.session = {};
+    ctx.session = ctx.session || {};
+    ctx.session.action = null; 
     const existing = await CementSeller.findOne({ userId: ctx.from.id });
     if (existing) {
         ctx.reply(`አንተ ቀድሞውኑ የተመዘገብክ ቋሚ ደንበኛ ነህ። የአሁኑ ሁኔታህ፡ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}\nምን ማድረግ ትፈልጋለህ?`, cementSellerInline);
@@ -94,14 +100,15 @@ bot.hears('🧱 ሲሚንቶ ለመሸጥ', async (ctx) => {
 });
 
 bot.hears('🧱 ሲሚንቶ ለመግዛት', (ctx) => {
-    ctx.session = {};
+    ctx.session = ctx.session || {};
     ctx.session.action = 'BUY_CEMENT_1';
     ctx.reply('1. ምን አይነት ሲሚንቶ ነው የሚፈልጉት?');
 });
 
 // --- 🚚 መኪና ክፍል ---
 bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
-    ctx.session = {};
+    ctx.session = ctx.session || {};
+    ctx.session.action = null;
     const myTrucks = await TruckLeasor.find({ userId: ctx.from.id });
     
     if (myTrucks.length > 0) {
@@ -133,7 +140,7 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
 });
 
 bot.hears('🚚 መኪና ለመከራየት', (ctx) => {
-    ctx.session = {};
+    ctx.session = ctx.session || {};
     ctx.session.action = 'RENT_TRUCK_1';
     ctx.reply('1. ምን አይነት መኪና ይፈልጋሉ?');
 });
@@ -145,7 +152,8 @@ const steelSellerInline = Markup.inlineKeyboard([
 ]);
 
 bot.hears('🟥 ብረት ለመሸጥ', async (ctx) => {
-    ctx.session = {};
+    ctx.session = ctx.session || {};
+    ctx.session.action = null;
     const existing = await SteelSeller.findOne({ userId: ctx.from.id });
     if (existing) {
         ctx.reply(`ቀድሞውኑ የተመዘገቡ የብረት ሻጭ ነዎት። ሁኔታ፡ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}`, steelSellerInline);
@@ -156,7 +164,7 @@ bot.hears('🟥 ብረት ለመሸጥ', async (ctx) => {
 });
 
 bot.hears('🟥 ብረት ለመግዛት', (ctx) => {
-    ctx.session = {};
+    ctx.session = ctx.session || {};
     ctx.session.action = 'BUY_STEEL_1';
     ctx.reply('1. ምን አይነት ብረት ይፈልጋሉ?');
 });
@@ -167,7 +175,8 @@ const machineryLeasorInline = Markup.inlineKeyboard([
 ]);
 
 bot.hears('🔹 ማሽነሪ ለማከራየት', async (ctx) => {
-    ctx.session = {};
+    ctx.session = ctx.session || {};
+    ctx.session.action = null;
     const existing = await MachineryLeasor.findOne({ userId: ctx.from.id });
     if (existing) {
         ctx.reply(`ቀድሞውኑ የተመዘገበ ማሽነሪ አለዎት። ሁኔታ፡ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}`, machineryLeasorInline);
@@ -178,7 +187,7 @@ bot.hears('🔹 ማሽነሪ ለማከራየት', async (ctx) => {
 });
 
 bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
-    ctx.session = {};
+    ctx.session = ctx.session || {};
     ctx.session.action = 'RENT_MACHINERY_1';
     ctx.reply('1. የሚፈልጉት የማሽነሪ አይነት ያስገቡ፡');
 });
