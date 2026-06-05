@@ -75,6 +75,17 @@ function getTodayDateString() {
     return d.toISOString().split('T');
 }
 
+function createSearchRegex(input) {
+    if (!input) return new RegExp('', 'i');
+    let clean = input.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (/[a-zA-Z]/.test(clean)) {
+        const fuzzyPattern = clean.split('').map(char => `${char}*`).join('.*');
+        return new RegExp(fuzzyPattern, 'i');
+    } else {
+        return new RegExp(clean, 'i');
+    }
+}
+
 // --- ⌨️ ዋና ሜኑ ---
 const mainKeyboard = Markup.keyboard([
     ['🧱 ሲሚንቶ ለመሸጥ', '🧱 ሲሚንቶ ለመግዛት'],
@@ -201,7 +212,7 @@ bot.hears('🧱 ሲሚንቶ ለመሸጥ', async (ctx) => {
     const name = ctx.from.first_name || 'ተጠቃሚ';
     
     if (existing) {
-        ctx.reply(`እንኳን ደህና መጡ ${name}!\n\nየአሁኑ ሁኔታዎ፦ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}\nእባክዎ ከታች ካሉት aDAOጭዎች አንዱን ይምረጡ፦`, cementSellerInline);
+        ctx.reply(`እንኳን ደህና መጡ ${name}!\n\nየአሁኑ ሁኔታዎ፦ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}\nእባክዎ ከታች ካሉት አማራጮች አንዱን ይምረጡ፦`, cementSellerInline);
     } else {
         ctx.session.action = 'REG_CEMENT_1';
         ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ።\n\nየሲሚንቶ አይነት ያስገቡ፡`);
@@ -253,7 +264,7 @@ bot.hears('🟥 ብረት ለመሸጥ', async (ctx) => {
         ctx.reply(`እንኳን ደህና መጡ ${name}!\n\nየአሁኑ ሁኔታዎ፦ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}\nእባክዎ ከታች ካሉት አማራጮች አንዱን ይምረጡ፦`, steelSellerInline);
     } else {
         ctx.session.action = 'REG_STEEL_1';
-        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ。\n\n1. የብረት አይነቶችን ያስገቡ፡`);
+        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ።\n\n1. የብረት አይነቶችን ያስገቡ፡`);
     }
 });
 
@@ -281,16 +292,6 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
     ctx.reply('1. የሚፈልጉት የማሽነሪ አይነት ያስገቡ፡');
 });
 
-function createSearchRegex(input) {
-    if (!input) return new RegExp('', 'i');
-    let clean = input.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if (/[a-zA-Z]/.test(clean)) {
-        const fuzzyPattern = clean.split('').map(char => `${char}*`).join('.*');
-        return new RegExp(fuzzyPattern, 'i');
-    } else {
-        return new RegExp(clean, 'i');
-    }
-}
 
 // --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ ---
 bot.on('text', async (ctx, next) => {
@@ -529,13 +530,61 @@ bot.action('cement_off', async (ctx) => { await CementSeller.findOneAndUpdate({ 
 bot.action('cement_update_price', (ctx) => { ctx.session.action = 'UPDATE_CEMENT_PRICE'; ctx.reply('አዲሱን የአንድ ኩንታል ዋጋ ያስገቡ፡'); ctx.answerCbQuery(); });
 bot.action('truck_new_reg', (ctx) => { ctx.session.action = 'REG_TRUCK_1'; ctx.session.truckData = {}; ctx.reply('ለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡'); ctx.answerCbQuery(); });
 
+// ✅ የተስተካከለው የመኪና በተኖች አሰራር 
 bot.action(/^tr_act_(.+)$/, async (ctx) => { 
-    const data = await TruckLeasor.findByIdAndUpdate(ctx.match, { status: 'active' }); 
-    if(data) await ActiveLog.create({ userId: ctx.from.id, name: ctx.from.first_name || 'ተጠቃሚ', category: '🚚 መኪና አከራይ', detail: `ታርጋ: ${data.plate}`, dateStr: getTodayDateString() });
-    ctx.reply('የመኪናው ሁኔታ ወደ [🟢 ዝግጁ] ተቀይሯል።'); ctx.answerCbQuery(); 
+    try {
+        const truckId = ctx.match;
+        if (mongoose.Types.ObjectId.isValid(truckId)) {
+            const data = await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' }); 
+            if(data) {
+                await ActiveLog.create({ 
+                    userId: ctx.from.id, 
+                    name: ctx.from.first_name || 'ተጠቃሚ', 
+                    category: '🚚 መኪና አከራይ', 
+                    detail: `ታርጋ: ${data.plate}`, 
+                    dateStr: getTodayDateString() 
+                });
+            }
+            await ctx.reply('የመኪናው ሁኔታ ወደ [🟢 ዝግጁ] በተሳካ ሁኔታ ተቀይሯል።'); 
+        } else {
+            await ctx.reply('ስህተት፡ ትክክለኛ የመኪና መለያ ቁጥር አይደለም።');
+        }
+    } catch (error) {
+        console.error("Error in tr_act:", error);
+    }
+    return ctx.answerCbQuery().catch(() => {});
 });
-bot.action(/^tr_off_(.+)$/, async (ctx) => { await TruckLeasor.findByIdAndUpdate(ctx.match, { status: 'off' }); ctx.reply('የመኪናው ሁኔታ ወደ [🔴 ስራ ላይ] ተቀይሯል።'); ctx.answerCbQuery(); });
-bot.action(/^tr_route_(.+)$/, (ctx) => { ctx.session.action = 'UPDATE_TRUCK_ROUTE'; ctx.session.targetTruckId = ctx.match; ctx.reply('እባክዎ አዲሱን የመኪናውን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ናዝሬት)፦'); ctx.answerCbQuery(); });
+
+bot.action(/^tr_off_(.+)$/, async (ctx) => { 
+    try {
+        const truckId = ctx.match;
+        if (mongoose.Types.ObjectId.isValid(truckId)) {
+            await TruckLeasor.findByIdAndUpdate(truckId, { status: 'off' }); 
+            await ctx.reply('የመኪናው ሁኔታ ወደ [🔴 ስራ ላይ] ተቀይሯል።'); 
+        } else {
+            await ctx.reply('ስህተት፡ ትክክለኛ የመኪና መለያ ቁጥር አይደለም።');
+        }
+    } catch (error) {
+        console.error("Error in tr_off:", error);
+    }
+    return ctx.answerCbQuery().catch(() => {});
+});
+
+bot.action(/^tr_route_(.+)$/, async (ctx) => { 
+    try {
+        const truckId = ctx.match;
+        if (mongoose.Types.ObjectId.isValid(truckId)) {
+            ctx.session.action = 'UPDATE_TRUCK_ROUTE';
+            ctx.session.targetTruckId = truckId;
+            await ctx.reply('እባክዎ አዲሱን የመኪናውን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ናዝሬት)፦');
+        } else {
+            await ctx.reply('ስህተት፡ ትክክለኛ የመኪና መለያ ቁጥር አይደለም።');
+        }
+    } catch (error) {
+        console.error("Error in tr_route:", error);
+    }
+    return ctx.answerCbQuery().catch(() => {});
+});
 
 bot.action('steel_active', async (ctx) => { 
     const data = await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); 
@@ -586,6 +635,16 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('Bot is Running!');
 }).listen(PORT);
+
+// --- ⏰ ቦቱ እንዳይተኛ ራሱን የመቀስቀሻ (በ 5 ደቂቃ) ---
+const URL_RENDER = "https://newmerja.onrender.com"; 
+setInterval(() => {
+    http.get(URL_RENDER, (res) => {
+        console.log(`ራስን የመቀስቀስ ሂደት ተሳክቷል: ${res.statusCode}`);
+    }).on('error', (e) => {
+        console.error(`ራስን በመቀስቀስ ላይ ስህተት: ${e.message}`);
+    });
+}, 300000); 
 
 bot.telegram.deleteWebhook({ drop_pending_updates: true })
     .then(() => bot.launch())
