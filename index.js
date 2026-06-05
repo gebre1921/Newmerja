@@ -108,18 +108,28 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
         let buttons = [];
         
         myTrucks.forEach(t => {
-            buttons.push([Markup.button.callback(`🚚 ታርጋ፦ ${t.plate} (${t.status === 'active' ? '✅ ዝግጁ' : '❌ ስራ ላይ'})`, 'none')]);
+            const currentStatus = t.status === 'active' ? '🟢 ዝግጁ' : '🔴 ስራ ላይ';
+            
+            // 1. የመኪናው መረጃ ርዕስ (ክሊክ የማይደረግ በተን)
+            buttons.push([Markup.button.callback(`🇪🇹 ታርጋ፦ ${t.plate} | ${t.type} [${currentStatus}]`, 'none')]);
+            
+            // 2. የሁኔታ መቀየሪያ በተኖች (ጎን ለጎን በአንድ መስመር እንዲያምር)
             buttons.push([
                 Markup.button.callback('✅ ዝግጁ አድርግ', `tr_act_${t._id}`),
                 Markup.button.callback('❌ ስራ ላይ አድርግ', `tr_off_${t._id}`)
             ]);
-            buttons.push([Markup.button.callback('📍 የጉዞ መስመር ቀይር', `tr_route_${t._id}`)]);
-            buttons.push([Markup.button.callback('-------------------------------------------', 'none')]);
+            
+            // 3. የጉዞ መስመር መቀየሪያ በተን
+            buttons.push([Markup.button.callback('📍 የጉዞ መስመር ለመቀየር', `tr_route_${t._id}`)]);
+            
+            // 4. በመኪናዎች መካከል ክፍተት መፍጠሪያ (ክሊክ የማይደረግ ቀጭን መስመር)
+            buttons.push([Markup.button.callback('━━━━━━━━━━━━━━━━━━━━', 'none')]);
         });
         
-        buttons.push([Markup.button.callback('➕ አዲስ መኪና መዝግብ', 'truck_new_reg')]);
+        // አዲስ መኪና መመዝገቢያ በተን ከታች ለብቻው ጎልቶ እንዲወጣ
+        buttons.push([Markup.button.callback('➕ አዲስ መኪና ለመመዝገብ', 'truck_new_reg')]);
         
-        ctx.reply('የእርስዎ የተመዘገቡ መኪናዎች ዝርዝር እና ማስተዳደሪያ በተኖች ከዚህ በታች ይገኛሉ፦', Markup.inlineKeyboard(buttons));
+        ctx.reply('📋 የእርስዎ የተመዘገቡ መኪናዎች አስተዳደሪያ ፓናል፦\n\nየመኪናውን ሁኔታ ለመቀየር ከታች ያሉትን በተኖች ይጠቀሙ።', Markup.inlineKeyboard(buttons));
     } else {
         ctx.session.action = 'REG_TRUCK_1';
         ctx.session.truckData = {};
@@ -456,21 +466,21 @@ bot.action('truck_new_reg', (ctx) => {
 });
 
 bot.action(/^tr_act_(.+)$/, async (ctx) => {
-    const truckId = ctx.match[1];
+    const truckId = ctx.match;
     await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
     ctx.reply('የመኪናው ሁኔታ ወደ [✅ ዝግጁ] ተቀይሯል።');
     ctx.answerCbQuery();
 });
 
 bot.action(/^tr_off_(.+)$/, async (ctx) => {
-    const truckId = ctx.match[1];
+    const truckId = ctx.match;
     await TruckLeasor.findByIdAndUpdate(truckId, { status: 'off' });
     ctx.reply('የመኪናው ሁኔታ ወደ [❌ ስራ ላይ / የለም] ተቀይሯል።');
     ctx.answerCbQuery();
 });
 
 bot.action(/^tr_route_(.+)$/, (ctx) => {
-    const truckId = ctx.match[1];
+    const truckId = ctx.match;
     ctx.session.action = 'UPDATE_TRUCK_ROUTE';
     ctx.session.targetTruckId = truckId;
     ctx.reply('እባክዎ አዲሱን የመኪናውን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ናዝሬት)፦');
@@ -547,7 +557,7 @@ bot.action('adm_manage_steel', async (ctx) => {
 // --- 🔥 የተስተካከሉ የማጥፊያ ተግባራት ---
 bot.action(/^del_cem_(.+)$/, async (ctx) => {
     try {
-        await CementSeller.findByIdAndDelete(ctx.match[1]);
+        await CementSeller.findByIdAndDelete(ctx.match);
         ctx.reply('🧱 የሲሚንቶ መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
     } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
     ctx.answerCbQuery();
@@ -555,7 +565,7 @@ bot.action(/^del_cem_(.+)$/, async (ctx) => {
 
 bot.action(/^del_trk_(.+)$/, async (ctx) => {
     try {
-        await TruckLeasor.findByIdAndDelete(ctx.match[1]);
+        await TruckLeasor.findByIdAndDelete(ctx.match);
         ctx.reply('🚚 የመኪናው መረጃ ከዳታቤዝ ላይ ተሰርዟል!');
     } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
     ctx.answerCbQuery();
@@ -563,7 +573,7 @@ bot.action(/^del_trk_(.+)$/, async (ctx) => {
 
 bot.action(/^del_stl_(.+)$/, async (ctx) => {
     try {
-        await SteelSeller.findByIdAndDelete(ctx.match[1]);
+        await SteelSeller.findByIdAndDelete(ctx.match);
         ctx.reply('🟥 የብረት መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
     } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
     ctx.answerCbQuery();
@@ -578,7 +588,6 @@ http.createServer((req, res) => {
     res.end('Bot is Running!');
 }).listen(PORT);
 
-// 🔥 ፊክስ፦ በ 409 Conflict የተነሳ የቆመውን የቴሌግራም ግንኙነት ማጽጃ እና ማስጀመርያ መስመር
 bot.telegram.deleteWebhook({ drop_pending_updates: true }).then(() => {
     bot.launch().then(() => console.log('ቦቱ ከግጭት ነፃ በሆነ መልኩ በተሳካ ሁኔታ ተነስቷል!'));
 });
