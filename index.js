@@ -76,7 +76,7 @@ bot.command('admin_panel', async (ctx) => {
         const buttons = trucks.map(truck => {
             return [
                 Markup.button.callback(`📇 ታርጋ፦ ${truck.plate || 'የለም'} (${truck.type || 'FSR'})`, 'none'),
-                // ማስተካከያ፡ አሁን በቀጥታ በ userId ነው የሚያጠፋው!
+                // ለደህንነት ሲባል በአዲሱ በተን ላይ የ userId እንልካለን
                 Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `del_${truck.userId}`)
             ];
         });
@@ -178,33 +178,46 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
 
 // --- 🔘 3. የውስጥ በተኖች አሠራር (Inline Callbacks) ---
 
-// የማጥፊያው ኮድ አሁን በ userId ስለሚሰራ 100% አስተማማኝ ነው
+// 🔥 100% ጽዱ እና Hybrid የሆነው የማጥፊያ ክፍል (የድሮውንም አዲሱንም በተን ያስተናግዳል)
 bot.action(/^del_(.+)$/, async (ctx) => {
     const adminId = 7423347375; 
     if (ctx.from.id !== adminId) return ctx.answerCbQuery('ፈቃድ የለዎትም!', { show_alert: true });
 
     try {
-        const targetUserId = Number(ctx.match);
-        const deleted = await TruckLeasor.findOneAndDelete({ userId: targetUserId });
+        const idParam = ctx.match;
+        let deleted = null;
+
+        // 1. መጀመሪያ የተላከው ID ትክክለኛ የ MongoDB ObjectId (የድሮ በተን) መሆኑን ቼክ አድርገን እንሰርዛለን
+        if (mongoose.Types.ObjectId.isValid(idParam)) {
+            deleted = await TruckLeasor.findByIdAndDelete(idParam);
+        } 
+        
+        // 2. በደብሊው ID ካልተገኘ ወይም የተላከው ቁጥር (userId) ከሆነ በ userId እንሰርዛለን
+        if (!deleted) {
+            const targetUserId = Number(idParam);
+            if (!isNaN(targetUserId)) {
+                deleted = await TruckLeasor.findOneAndDelete({ userId: targetUserId });
+            }
+        }
 
         if (deleted) {
-            await ctx.answerCbQuery(`ታርጋ ቁጥር ${deleted.plate} በተሳካ ሁኔታ ጠፍቷል!`, { show_alert: true });
+            await ctx.answerCbQuery(`ታርጋ ቁጥር ${deleted.plate || ''} በተሳካ ሁኔታ ጠፍቷል!`, { show_alert: true });
             
             const remainingTrucks = await TruckLeasor.find({});
             if (remainingTrucks.length === 0) {
                 return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች ከዳታቤዝ ውስጥ ተደምስሰዋል።');
             }
             const nextButtons = remainingTrucks.map(t => [
-                Markup.button.callback(`📇 ታርጋ፦ ${t.plate} (${t.type})`, 'none'),
+                Markup.button.callback(`📇 ታርጋ፦ ${t.plate || 'የለም'} (${t.type || 'FSR'})`, 'none'),
                 Markup.button.callback('🗑️ ከዳታቤዝ ሰርዝ', `del_${t.userId}`)
             ]);
             await ctx.editMessageText('👑 መኪናው ጠፍቷል። በዳታቤዝ ውስጥ የቀሩት ዝርዝር፦', Markup.inlineKeyboard(nextButtons));
         } else {
-            await ctx.answerCbQuery('ይህ መኪና ቀድሞ ተሰርዟል!', { show_alert: true });
+            await ctx.answerCbQuery('ይህ መኪና ቀድሞ ተሰርዟል ወይም አልተገኘም!', { show_alert: true });
         }
     } catch (error) {
-        console.error(error);
-        await ctx.answerCbQuery('ማጥፋት አልተሳካም! እባክዎ እንደገና ይሞክሩ።', { show_alert: true });
+        console.error("Deletion Error:", error);
+        await ctx.answerCbQuery('ማጥፋት አልተሳካም! እባክዎ አዲስ /admin_panel በመጻፍ እንደገና ይሞክሩ።', { show_alert: true });
     }
 });
 
@@ -230,7 +243,7 @@ bot.action('machinery_off', async (ctx) => { await MachineryLeasor.findOneAndUpd
 bot.on('text', async (ctx, next) => {
     const text = ctx.message.text;
 
-    // ትዕዛዞች በስህተት እዚህ ከገቡ ወደ ሚቀጥለው ኮድ እንዲያልፉ ያደርጋል
+    // ትዕዛዞች በስህተት እዚህ ከገቡ ወደ ሚቀጥለው ኮድ እንዲያልፉ ያደርጋል (መረጃ ላይ እንዳይቀላቀሉ)
     if (text.startsWith('/')) return next();
 
     const userId = ctx.from.id;
