@@ -32,15 +32,15 @@ const TruckLeasor = mongoose.model('TruckLeasor', {
     rentedCount: { type: Number, default: 0 } 
 });
 
-// 🔥 ፊክስ፦ የሰዎችን ሴሽን ዳታቤዝ ላይ በቋሚነት ራሳችን የምናስቀምጥበት ሞዴል
+// የሰዎችን ሴሽን ዳታቤዝ ላይ በቋሚነት ራሳችን የምናስቀምጥበት ሞዴል
 const BotSession = mongoose.model('BotSession', {
-    key: { type: String, required: true, unique: true }, // 'userId:userId' በሚል መልክ ይቀመጣል
+    key: { type: String, required: true, unique: true },
     data: { type: Object, default: {} }
 });
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// 🔥 🔥 ፊክስ፦ የሴሽን መደባለቅን ለአንዴና ለመጨረሻ ጊዜ የሚፈታው Custom MongoDB Session Middleware
+// 🔥 የሴሽን መደባለቅን እና መጥፋትን የሚፈታው Custom MongoDB Session Middleware
 bot.use(async (ctx, next) => {
     if (!ctx.from) return next();
     
@@ -84,6 +84,8 @@ bot.command('admin_panel', async (ctx) => {
         return ctx.reply('ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!');
     }
     
+    // 🔥 ፊክስ፦ አድሚኑ ቀጥታ ሲገባ ክራሽ እንዳያደርግ መጀመሪያ ሴሽኑን ያዘጋጃል
+    ctx.session = ctx.session || {};
     ctx.session.action = null;
     
     const adminMenu = Markup.inlineKeyboard([
@@ -586,26 +588,4 @@ bot.action(/^del_trk_(.+)$/, async (ctx) => {
     ctx.answerCbQuery();
 });
 
-bot.action(/^del_stl_(.+)$/, async (ctx) => {
-    try {
-        await SteelSeller.findByIdAndDelete(ctx.match);
-        ctx.reply('🟥 የብረት መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
-    } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
-    ctx.answerCbQuery();
-});
-
-bot.action('none', (ctx) => ctx.answerCbQuery());
-
-// --- 🌐 Render ፖርት ማስከፈቻ የዌብ ሰርቨር ---
-const PORT = process.env.PORT || 3000;
-http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot is Running!');
-}).listen(PORT);
-
-bot.telegram.deleteWebhook({ drop_pending_updates: true }).then(() => {
-    bot.launch().then(() => console.log('ቦቱ ያለ ምንም ጥቅል ጥገኝነት እና ከግጭት ነፃ በሆነ መልኩ ተነስቷል!'));
-});
-
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+bot.action(/^del_stl
