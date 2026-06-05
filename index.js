@@ -65,13 +65,14 @@ bot.command('admin_panel', async (ctx) => {
 
     try {
         const trucks = await TruckLeasor.find({});
-        if (trucks.length === 0) return ctx.reply('👑 አድሚን፡ በዳታቤዝ ውስጥ ምንም የተመዘገበ መኪና የለም。');
+        if (trucks.length === 0) return ctx.reply('👑 አድሚን፡ በዳታቤዝ ውስጥ ምንም የተመዘገበ መኪና የለም።');
 
+        let text = `👑 **የአድሚን መቆጣጠሪያ ፓናል**\n\nከዳታቤዝ ሙሉ በሙሉ ማጥፋት የሚፈልጉትን መኪና ይምረጡ፦`;
         const buttons = trucks.map(truck => [
             Markup.button.callback(`📇 ታርጋ፦ ${truck.plate || 'የለም'} (${truck.type || 'FSR'})`, 'none'),
             Markup.button.callback('🗑️ ከአድሚን ሰርዝ', `del_a_${truck._id}`)
         ]);
-        await ctx.reply('👑 የአድሚን መቆጣጠሪያ ፓናል\n\nከዳታቤዝ ሙሉ በሙሉ ማጥፋት የሚፈልጉትን መኪና ይምረጡ፡', Markup.inlineKeyboard(buttons));
+        await ctx.reply(text, Markup.inlineKeyboard(buttons));
     } catch (error) {
         ctx.reply("❌ ዳታቤዝ ላይ መረጃዎችን ማምጣት አልተቻለም።");
     }
@@ -118,10 +119,10 @@ async function showUserTrucks(ctx, userId, isEdit = false) {
     }
 }
 
-// አንድን መኪና ብቻ ነጥሎ ማሳያ ራሱን የቻለ ዩቲሊቲ ፈንክሽን (ስህተትን ይከላከላል)
+// አንድን መኪና ብቻ ነጥሎ ማሳያ ራሱን የቻለ ዩቲሊቲ ፈንክሽን
 async function renderSingleTruck(ctx, truckId) {
     const truck = await TruckLeasor.findById(truckId);
-    if (!truck) return ctx.editMessageText('ይህ መኪና አልተገኘም!');
+    if (!truck) return ctx.editMessageText('ይህ መኪና አልተገኘም!').catch(() => {});
 
     const statusText = truck.status === 'active' ? '✅ አለ (ለስራ ዝግጁ)' : '❌ የለም (ስራ ላይ/የተከራየ)';
     const toggleLabel = truck.status === 'active' ? '❌ ወደ [የለም] ቀይር' : '✅ ወደ [አለ] ቀይር';
@@ -145,30 +146,49 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => { const session = get
 
 // --- 🔘 3. የውስጥ በተኖች አሠራር (Inline Callbacks) ---
 
+// 👑 የአድሚን መኪና ማጥፊያ አስተማማኝ አሠራር
 bot.action(/^del_a_(.+)$/, async (ctx) => {
-    if (ctx.from.id !== 7423347375) return ctx.answerCbQuery('ፈቃድ የለዎትም!', { show_alert: true });
+    if (ctx.from.id !== 7423347375) {
+        return ctx.answerCbQuery('ፈቃድ የለዎትም!', { show_alert: true });
+    }
     try {
         const idParam = ctx.match;
         await TruckLeasor.findByIdAndDelete(idParam);
-        await ctx.answerCbQuery(`መረጃው ከአድሚን ጠፍቷል!`, { show_alert: true });
+        await ctx.answerCbQuery(`መረጃው ከአድሚን ፓናል ላይ ጠፍቷል!`, { show_alert: true });
+        
         const remaining = await TruckLeasor.find({});
-        if (remaining.length === 0) return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች አልቀዋል።');
-        const nextButtons = remaining.map(t => [Markup.button.callback(`📇 ታርጋ፦ ${t.plate} (${t.type})`, 'none'), Markup.button.callback('🗑️ ከአድሚን ሰርዝ', `del_a_${t._id}`)]);
-        await ctx.editMessageText('👑 መኪናው ጠፍቷል። የቀሩት ዝርዝር፦', Markup.inlineKeyboard(nextButtons));
-    } catch (e) { await ctx.answerCbQuery('ማጥፋት አልተሳካም!', { show_alert: true }); }
+        if (remaining.length === 0) {
+            return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች አልቀዋል።').catch(() => {});
+        }
+        
+        const nextButtons = remaining.map(t => [
+            Markup.button.callback(`📇 ታርጋ፦ ${t.plate} (${t.type})`, 'none'), 
+            Markup.button.callback('🗑️ ከአድሚን ሰርዝ', `del_a_${t._id}`)
+        ]);
+        await ctx.editMessageText('👑 መኪናው ጠፍቷል። የቀሩት ዝርዝር፦', Markup.inlineKeyboard(nextButtons)).catch(() => {});
+    } catch (e) { 
+        await ctx.answerCbQuery('ማጥፋት አልተሳካም!', { show_alert: true }); 
+    }
 });
 
 bot.action(/^t_view_(.+)$/, async (ctx) => {
     try {
+        await ctx.answerCbQuery();
         const truckId = ctx.match;
         await renderSingleTruck(ctx, truckId);
-        ctx.answerCbQuery();
-    } catch (e) { ctx.answerCbQuery('ስህተት ተፈጥሯል!'); }
+    } catch (e) { 
+        ctx.answerCbQuery('ስህተት ተፈጥሯል!').catch(() => {}); 
+    }
 });
 
-bot.action('t_list', async (ctx) => { await showUserTrucks(ctx, ctx.from.id, true); ctx.answerCbQuery(); });
+bot.action('t_list', async (ctx) => { 
+    try {
+        await ctx.answerCbQuery();
+        await showUserTrucks(ctx, ctx.from.id, true); 
+    } catch (e) {}
+});
 
-// 🔄 አዲሱ አስተማማኝ የአንድ መኪና ሁኔታ መቀያየሪያ
+// 🔄 የአንድ መኪና ሁኔታ መቀያየሪያ (አለ / የለም)
 bot.action(/^t_tog_(.+)$/, async (ctx) => {
     try {
         const truckId = ctx.match;
@@ -179,41 +199,46 @@ bot.action(/^t_tog_(.+)$/, async (ctx) => {
         await TruckLeasor.findByIdAndUpdate(truckId, { status: newStatus });
         
         await ctx.answerCbQuery(`ሁኔታው ወደ [${newStatus === 'active' ? 'አለ' : 'የለም'}] ተቀይሯል!`);
-        
-        // ስህተትን ሙሉ በሙሉ ለማስቀረት የፈጠርነውን ዩቲሊቲ ፈንክሽን እንጠራዋለን
         await renderSingleTruck(ctx, truckId);
-    } catch (e) { ctx.answerCbQuery('መቀየር አልተቻለም!'); }
+    } catch (e) { 
+        ctx.answerCbQuery('መቀየር አልተቻለም!').catch(() => {}); 
+    }
 });
 
 bot.action(/^t_rte_(.+)$/, async (ctx) => {
-    const truckId = ctx.match;
-    const session = getSession(ctx.from.id);
-    session.editingTruckId = truckId;
-    session.action = 'CONFIRM_TRUCK_ROUTE';
-    await ctx.reply('እባክዎ ለዚህ መኪና አዲሱን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ወደ ናዝሬት)፦');
-    ctx.answerCbQuery();
+    try {
+        await ctx.answerCbQuery();
+        const truckId = ctx.match;
+        const session = getSession(ctx.from.id);
+        session.editingTruckId = truckId;
+        session.action = 'CONFIRM_TRUCK_ROUTE';
+        await ctx.reply('እባክዎ ለዚህ መኪና አዲሱን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ወደ ናዝሬት)፦');
+    } catch (e) {}
 });
 
+// 🗑️ ተጠቃሚው መኪናውን ራሱ ከስልኩ ላይ የሚሰርዝበት በተን
 bot.action(/^t_del_(.+)$/, async (ctx) => {
     try {
         const truckId = ctx.match;
         await TruckLeasor.findByIdAndDelete(truckId);
-        await ctx.answerCbQuery('መኪናው በተሳካ ሁኔታ ከዝርዝርዎ ላይ ተሰርዟል!', { show_alert: true });
+        await ctx.answerCbQuery('መኪናው በተሳካ ሁኔታ ከዝርዝርዎ ላይ ሰርዘነዋል!', { show_alert: true });
         await showUserTrucks(ctx, ctx.from.id, true);
-    } catch (e) { ctx.answerCbQuery('መሰረዝ አልተቻለም!'); }
+    } catch (e) { 
+        ctx.answerCbQuery('መሰረዝ አልተቻለም!').catch(() => {}); 
+    }
 });
 
-bot.action('none', (ctx) => ctx.answerCbQuery());
-bot.action('cement_active', async (ctx) => { await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('ሁኔታዎ ወደ [አለ] ተቀይሯል።'); ctx.answerCbQuery(); });
-bot.action('cement_off', async (ctx) => { await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('ሁኔታዎ ወደ [የለም] ተቀይሯል።'); ctx.answerCbQuery(); });
-bot.action('cement_re_reg', (ctx) => { const session = getSession(ctx.from.id); session.action = 'REG_CEMENT_1'; ctx.reply('የሲሚንቶ አይነት ያስገቡ፡'); ctx.answerCbQuery(); });
-bot.action('cement_update_price', (ctx) => { const session = getSession(ctx.from.id); session.action = 'UPDATE_CEMENT_PRICE'; ctx.reply('አዲሱን የአንድ ኩንታል ዋጋ ያስገቡ፡'); ctx.answerCbQuery(); });
-bot.action('truck_re_reg', (ctx) => { const session = getSession(ctx.from.id); session.action = 'REG_TRUCK_1'; ctx.reply('ምን አይነት መኪና እንደሆነ ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡'); ctx.answerCbQuery(); });
-bot.action('steel_active', async (ctx) => { await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery(); });
-bot.action('steel_off', async (ctx) => { await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('የብረት ምርትዎ [የለም] ተደርጓል።'); ctx.answerCbQuery(); });
-bot.action('steel_update_price', (ctx) => { const session = getSession(ctx.from.id); session.action = 'UPDATE_STEEL_PRICE'; ctx.reply('አዲሱን የብረት ዋጋ ያስገቡ፡'); ctx.answerCbQuery(); });
-bot.action('machinery_active', async (ctx) => { await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('ማሽነሪዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery(); });
-bot.action('machinery_off', async (ctx) => { await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('ማሽነሪዎ [የለም] ተደርጓል።'); ctx.answerCbQuery(); });
+bot.action('none', (ctx) => ctx.answerCbQuery().catch(() => {}));
+bot.action('cement_active', async (ctx) => { await ctx.answerCbQuery(); await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('ሁኔታዎ ወደ [አለ] ተቀይሯል።'); });
+bot.action('cement_off', async (ctx) => { await ctx.answerCbQuery(); await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('ሁኔታዎ ወደ [የለም] ተቀይሯል።'); });
+bot.action('cement_re_reg', (ctx) => { const session = getSession(ctx.from.id); session.action = 'REG_CEMENT_1'; ctx.reply('የሲሚንቶ አይነት ያስገቡ፡'); ctx.answerCbQuery().catch(() => {}); });
+bot.action('cement_update_price', (ctx) => { const session = getSession(ctx.from.id); session.action = 'UPDATE_CEMENT_PRICE'; ctx.reply('አዲሱን የአንድ ኩንታል ዋጋ ያስገቡ፡'); ctx.answerCbQuery().catch(() => {}); });
+bot.action('truck_re_reg', (ctx) => { const session = getSession(ctx.from.id); session.action = 'REG_TRUCK_1'; ctx.reply('ምን አይነት መኪና እንደሆነ ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡'); ctx.answerCbQuery().catch(() => {}); });
+bot.action('steel_active', async (ctx) => { await ctx.answerCbQuery(); await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።'); });
+bot.action('steel_off', async (ctx) => { await ctx.answerCbQuery(); await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('የብረት ምርትዎ [የለም] ተደርጓል።'); });
+bot.action('steel_update_price', (ctx) => { const session = getSession(ctx.from.id); session.action = 'UPDATE_STEEL_PRICE'; ctx.reply('አዲሱን የብረት ዋጋ ያስገቡ፡'); ctx.answerCbQuery().catch(() => {}); });
+bot.action('machinery_active', async (ctx) => { await ctx.answerCbQuery(); await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('ማሽነሪዎ ዝግጁ ተደርጓል።'); });
+bot.action('machinery_off', async (ctx) => { await ctx.answerCbQuery(); await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('ማሽነሪዎ [የለም] ተደርጓል።'); });
 
 // --- 💬 4. የፅሁፍ መልዕክቶች ማቀናበሪያ (Text Handler) ---
 bot.on('text', async (ctx, next) => {
