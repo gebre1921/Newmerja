@@ -32,7 +32,6 @@ const TruckLeasor = mongoose.model('TruckLeasor', new mongoose.Schema({
     rentedCount: { type: Number, default: 0 } 
 }));
 
-// የፈላጊዎች የፍለጋ መዝገብ (Search Logs)
 const SearchLog = mongoose.model('SearchLog', new mongoose.Schema({
     userId: Number,
     username: String,
@@ -42,7 +41,6 @@ const SearchLog = mongoose.model('SearchLog', new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 }));
 
-// የየቀኑ የActive ተጠቃሚዎች መዝገብ (Active Logs)
 const ActiveLog = mongoose.model('ActiveLog', new mongoose.Schema({
     userId: Number,
     name: String,
@@ -59,10 +57,8 @@ const BotSession = mongoose.model('BotSession', new mongoose.Schema({
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// 🔄 የሴሽን መደባለቅን የሚፈታው Custom MongoDB Session Middleware
 bot.use(async (ctx, next) => {
     if (!ctx.from) return next();
-    
     const sessionKey = `${ctx.from.id}:${ctx.from.id}`;
     let sessionDoc = await BotSession.findOne({ key: sessionKey });
     if (!sessionDoc) {
@@ -75,7 +71,7 @@ bot.use(async (ctx, next) => {
 
 function getTodayDateString() {
     const d = new Date();
-    d.setHours(d.getHours() + 3); // UTC+3 ለኢትዮጵያ ሰዓት አቆጣጠር
+    d.setHours(d.getHours() + 3); 
     return d.toISOString().split('T');
 }
 
@@ -92,9 +88,7 @@ bot.start((ctx) => {
     ctx.reply('እንኳን ወደ Simple ቦት በሰላም መጡ! እባክዎ ከታች ካሉት አማራጮች አንዱን ይምረጡ።', mainKeyboard);
 });
 
-// ========================================================
-// 👑 🔥 የአድሚን መቆጣጠሪያ ፓናል (Admin Panel) ክፍል 🔥 👑
-// ========================================================
+// --- 👑 የአድሚን መቆጣጠሪያ ፓናል ---
 bot.command('admin_panel', async (ctx) => {
     if (ctx.from.id !== 7423347375) {
         return ctx.reply('ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!');
@@ -185,7 +179,7 @@ bot.action('admin_delete_menu', (ctx) => {
     ctx.answerCbQuery();
 });
 
-// --- 🧱 የተዋሃዱ የቁልፍ ሰሌዳ በተኖች ---
+// --- 🧱 የውስጥ መስመር በተኖች ---
 const cementSellerInline = Markup.inlineKeyboard([
     [Markup.button.callback('✅ አለ', 'cement_active'), Markup.button.callback('❌ የለም', 'cement_off')],
     [Markup.button.callback('💰 ዋጋ ማሻሻያ', 'cement_update_price')]
@@ -207,7 +201,7 @@ bot.hears('🧱 ሲሚንቶ ለመሸጥ', async (ctx) => {
     const name = ctx.from.first_name || 'ተጠቃሚ';
     
     if (existing) {
-        ctx.reply(`እንኳን ደህና መጡ ${name}!\n\nየአሁኑ ሁኔታዎ፦ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}\nእባክዎ ከታች ካሉት አማራጮች አንዱን ይምረጡ፦`, cementSellerInline);
+        ctx.reply(`እንኳን ደህና መጡ ${name}!\n\nየአሁኑ ሁኔታዎ፦ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}\nእባክዎ ከታች ካሉት aDAOጭዎች አንዱን ይምረጡ፦`, cementSellerInline);
     } else {
         ctx.session.action = 'REG_CEMENT_1';
         ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ።\n\nየሲሚንቶ አይነት ያስገቡ፡`);
@@ -219,7 +213,7 @@ bot.hears('🧱 ሲሚንቶ ለመግዛት', (ctx) => {
     ctx.reply('1. ምን አይነት ሲሚንቶ ነው የሚፈልጉት?');
 });
 
-// --- 🚚 መኪና ለማከራየት ---
+// --- 🚚 መኪና ክፍል ---
 bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     ctx.session.action = null;
     const myTrucks = await TruckLeasor.find({ userId: ctx.from.id });
@@ -235,13 +229,12 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
                 Markup.button.callback('📍 መስመር ቀይር', `tr_route_${t._id}`)
             ]);
         });
-        
         buttons.push([Markup.button.callback('➕ አዲስ መኪና ለመመዝገብ', 'truck_new_reg')]);
         ctx.reply(`እንኳን ደህና መጡ ${name}!\n\n📋 የእርስዎ መኪናዎች ማስተዳደሪያ ፓናል፦`, Markup.inlineKeyboard(buttons));
     } else {
         ctx.session.action = 'REG_TRUCK_1';
         ctx.session.truckData = {};
-        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ。\n\nለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡`);
+        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ።\n\nለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡`);
     }
 });
 
@@ -299,7 +292,7 @@ function createSearchRegex(input) {
     }
 }
 
-// --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ (Text Handler) ---
+// --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ ---
 bot.on('text', async (ctx, next) => {
     const text = ctx.message.text;
     if (text.startsWith('/')) return next();
@@ -329,11 +322,9 @@ bot.on('text', async (ctx, next) => {
         ctx.session.cementData.price = 1300; 
         ctx.session.cementData.status = 'active';
         await CementSeller.findOneAndUpdate({ userId }, ctx.session.cementData, { upsert: true });
-        
         await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🧱 ሲሚንቶ ሻጭ', detail: ctx.session.cementData.companyName, dateStr: getTodayDateString() });
-        
         ctx.session.action = null;
-        ctx.reply('መረጃዎ በትክክል ተመዝግቧል! አሁን እርስዎ በተሳካ ሁኔታ ተመዝግበዋል።', cementSellerInline);
+        ctx.reply('መረጃዎ በትክክል ተመዝግቧል!', cementSellerInline);
     }
     else if (action === 'UPDATE_CEMENT_PRICE') {
         await CementSeller.findOneAndUpdate({ userId }, { price: Number(text) });
@@ -352,7 +343,6 @@ bot.on('text', async (ctx, next) => {
     } else if (action === 'BUY_CEMENT_3') {
         ctx.session.buyCement = ctx.session.buyCement || {};
         ctx.session.buyCement.phone = text;
-        
         await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🧱 ሲሚንቶ ፈላጊ', searchedFor: `አይነት: ${ctx.session.buyCement.type}, አድራሻ: ${ctx.session.buyCement.address}`, phone: text });
 
         const searchRegex = createSearchRegex(ctx.session.buyCement.type);
@@ -385,9 +375,7 @@ bot.on('text', async (ctx, next) => {
         ctx.session.truckData.status = 'active';
         ctx.session.truckData.rentedCount = 0; 
         await TruckLeasor.findOneAndUpdate({ userId: userId, plate: ctx.session.truckData.plate }, ctx.session.truckData, { upsert: true });
-        
-        await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🚚 መኪና አከራይ', detail: `ታርጋ: ${ctx.session.truckData.plate} (${ctx.session.truckData.type})`, dateStr: getTodayDateString() });
-
+        await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🚚 መኪና አከራይ', detail: `ታርጋ: ${ctx.session.truckData.plate}`, dateStr: getTodayDateString() });
         ctx.session.action = null;
         ctx.reply('መኪናዎ በትክክል ተመዝግቧል! ፈላጊ ሲኖር እናሳቆታለን።');
     }
@@ -414,7 +402,6 @@ bot.on('text', async (ctx, next) => {
     } else if (action === 'RENT_TRUCK_3') {
         ctx.session.rentTruck = ctx.session.rentTruck || {};
         ctx.session.rentTruck.phone = text; 
-        
         await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🚚 መኪና ፈላጊ', searchedFor: `አይነት: ${ctx.session.rentTruck.type}, መስመር: ${ctx.session.rentTruck.route}`, phone: text });
 
         const userRoute = ctx.session.rentTruck.route || "";
@@ -451,9 +438,7 @@ bot.on('text', async (ctx, next) => {
         ctx.session.steelData.userId = userId;
         ctx.session.steelData.status = 'active';
         await SteelSeller.findOneAndUpdate({ userId }, ctx.session.steelData, { upsert: true });
-        
         await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🟥 ብረት ሻጭ', detail: ctx.session.steelData.type, dateStr: getTodayDateString() });
-
         ctx.session.action = null;
         ctx.reply('የብረት መረጃዎ በተሳካ ሁኔታ ተመዝግቧል!', steelSellerInline);
     }
@@ -474,7 +459,6 @@ bot.on('text', async (ctx, next) => {
     } else if (action === 'BUY_STEEL_3') {
         ctx.session.buySteel = ctx.session.buySteel || {};
         ctx.session.buySteel.phone = text;
-        
         await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🟥 ብረት ፈላጊ', searchedFor: `አይነት: ${ctx.session.buySteel.type}, ቦታ: ${ctx.session.buySteel.address}`, phone: text });
 
         const searchRegex = createSearchRegex(ctx.session.buySteel.type);
@@ -506,9 +490,7 @@ bot.on('text', async (ctx, next) => {
         ctx.session.machineryData.price = text;
         ctx.session.machineryData.status = 'active';
         await MachineryLeasor.findOneAndUpdate({ userId }, ctx.session.machineryData, { upsert: true });
-        
         await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🔹 ማሽነሪ አከራይ', detail: ctx.session.machineryData.type, dateStr: getTodayDateString() });
-
         ctx.session.action = null;
         ctx.reply('ማሽነሪዎ በትክክል ተመዝግቧል!', machineryLeasorInline);
     }
@@ -524,7 +506,6 @@ bot.on('text', async (ctx, next) => {
     } else if (action === 'RENT_MACHINERY_3') {
         ctx.session.rentMachinery = ctx.session.rentMachinery || {};
         ctx.session.rentMachinery.phone = text; 
-        
         await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🔹 ማሽነሪ ፈላጊ', searchedFor: `አይነት: ${ctx.session.rentMachinery.type}, አድራሻ: ${ctx.session.rentMachinery.address}`, phone: text });
 
         const searchRegex = createSearchRegex(ctx.session.rentMachinery.type);
@@ -541,7 +522,7 @@ bot.on('text', async (ctx, next) => {
 // --- 🔘 የውስጥ በተኖች አሠራር ---
 bot.action('cement_active', async (ctx) => { 
     const data = await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); 
-    if(data) await ActiveLog.create({ userId: ctx.from.id, name: ctx.from.first_name || 'ተጠቃሚ', category: '🧱 ሲሚንቶ ሻጭ', detail: data.companyName || 'የተመዘገበ ድርጅት', dateStr: getTodayDateString() });
+    if(data) await ActiveLog.create({ userId: ctx.from.id, name: ctx.from.first_name || 'ተጠቃሚ', category: '🧱 ሲሚንቶ ሻጭ', detail: data.companyName || 'ድርጅት', dateStr: getTodayDateString() });
     ctx.reply('ሁኔታዎ ወደ [✅ አለ] ተቀይሯል።'); ctx.answerCbQuery(); 
 });
 bot.action('cement_off', async (ctx) => { await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('ሁኔታዎ ወደ [❌ የለም] ተቀይሯል።'); ctx.answerCbQuery(); });
@@ -574,3 +555,42 @@ bot.action('machinery_off', async (ctx) => { await MachineryLeasor.findOneAndUpd
 // --- ❌ አድሚን ማስተዳደሪያ ማጥፊያዎች ---
 bot.action('adm_manage_cement', async (ctx) => {
     const sellers = await CementSeller.find({}); if (sellers.length === 0) return ctx.reply('🧱 ምንም የለም።');
+    const buttons = sellers.map(s => [Markup.button.callback(`🧱 ${s.companyName || 'ሲሚንቶ'}`, 'none'), Markup.button.callback('❌ ሰርዝ', `del_cem_${s._id}`)]);
+    ctx.reply('ለማጥፋት ❌ ሰርዝ ይጫኑ፦', Markup.inlineKeyboard(buttons)); ctx.answerCbQuery();
+});
+bot.action('adm_manage_truck', async (ctx) => {
+    const trucks = await TruckLeasor.find({}); if (trucks.length === 0) return ctx.reply('🚚 ምንም የለም።');
+    const buttons = trucks.map(t => [Markup.button.callback(`🚚 ታርጋ፦ ${t.plate}`, 'none'), Markup.button.callback('❌ ሰርዝ', `del_trk_${t._id}`)]);
+    ctx.reply('ለማጥፋት ❌ ሰርዝ ይጫኑ፦', Markup.inlineKeyboard(buttons)); ctx.answerCbQuery();
+});
+bot.action('adm_manage_steel', async (ctx) => {
+    const steels = await SteelSeller.find({}); if (steels.length === 0) return ctx.reply('🟥 ምንም የለም።');
+    const buttons = steels.map(s => [Markup.button.callback(`🟥 አይነት፦ ${s.type}`, 'none'), Markup.button.callback('❌ ሰርዝ', `del_stl_${s._id}`)]);
+    ctx.reply('ለማጥፋት ❌ ሰርዝ ይጫኑ፦', Markup.inlineKeyboard(buttons)); ctx.answerCbQuery();
+});
+bot.action('adm_manage_machinery', async (ctx) => {
+    const machinery = await MachineryLeasor.find({}); if (machinery.length === 0) return ctx.reply('🔹 ምንም የለም።');
+    const buttons = machinery.map(m => [Markup.button.callback(`🔹 አይነት፦ ${m.type}`, 'none'), Markup.button.callback('❌ ሰርዝ', `del_mac_${m._id}`)]);
+    ctx.reply('ለማጥፋት ❌ ሰርዝ ይጫኑ፦', Markup.inlineKeyboard(buttons)); ctx.answerCbQuery();
+});
+
+bot.action(/^del_cem_(.+)$/, async (ctx) => { try { await CementSeller.findByIdAndDelete(ctx.match); ctx.reply('🧱 ተሰርዟል!'); } catch(e) {} ctx.answerCbQuery(); });
+bot.action(/^del_trk_(.+)$/, async (ctx) => { try { await TruckLeasor.findByIdAndDelete(ctx.match); ctx.reply('🚚 ተሰርዟል!'); } catch(e) {} ctx.answerCbQuery(); });
+bot.action(/^del_stl_(.+)$/, async (ctx) => { try { await SteelSeller.findByIdAndDelete(ctx.match); ctx.reply('🟥 ተሰርዟል!'); } catch(e) {} ctx.answerCbQuery(); });
+bot.action(/^del_mac_(.+)$/, async (ctx) => { try { await MachineryLeasor.findByIdAndDelete(ctx.match); ctx.reply('🔹 ተሰርዟል!'); } catch(e) {} ctx.answerCbQuery(); });
+bot.action('none', (ctx) => ctx.answerCbQuery());
+
+// --- 🌐 Render ፖርት ማስከፈቻ የዌብ ሰርቨር ---
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is Running!');
+}).listen(PORT);
+
+bot.telegram.deleteWebhook({ drop_pending_updates: true })
+    .then(() => bot.launch())
+    .then(() => console.log('ቦቱ ያለ ምንም ግጭት በተሳካ ሁኔታ ተነስቷል!'))
+    .catch((err) => console.error('የመነሳት ስህተት ያጋጥማል:', err));
+
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
