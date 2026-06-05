@@ -79,7 +79,7 @@ bot.hears('🧱 ሲሚንቶ ለመግዛት', (ctx) => {
     ctx.reply('1. ምን አይነት ሲሚንቶ ነው የሚፈልጉት?');
 });
 
-// --- 🚚 መኪና ክፍል (የድሮው ዝርዝር ማሳያ ሙሉ በሙሉ ጠፍቷል) ---
+// --- 🚚 መኪና ክፍል ---
 bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     ctx.session = {};
     ctx.session.action = 'REG_TRUCK_1';
@@ -289,7 +289,7 @@ bot.on('text', async (ctx) => {
         ctx.session.action = null;
     }
 
-    // --- 🔹 ማሽነሪ ምዝገባ ፍሰት ---
+    // --- 🔹 ማሽነሪ ክፍል ---
     else if (action === 'REG_MACHINERY_1') {
         ctx.session.machineryData = { type: text };
         ctx.session.action = 'REG_MACHINERY_2'; 
@@ -368,6 +368,84 @@ bot.action('machinery_off', async (ctx) => {
     await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' });
     ctx.reply('ማሽነሪዎ [የለም] ተደርጓል።'); ctx.answerCbQuery();
 });
+
+// ========================================================
+// 👑 🔥 የአድሚን መቆጣጠሪያ ፓናል (Admin Panel) ክፍል ብቻ 🔥 👑
+// ========================================================
+
+bot.command('admin_panel', async (ctx) => {
+    if (ctx.from.id !== 7423347375) {
+        return ctx.reply('ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!');
+    }
+    
+    const adminMenu = Markup.inlineKeyboard([
+        [Markup.button.callback('🧱 ሲሚንቶ አጥፋ', 'adm_manage_cement')],
+        [Markup.button.callback('🚚 መኪና አጥፋ', 'adm_manage_truck')],
+        [Markup.button.callback('🟥 ብረት አጥፋ', 'adm_manage_steel')]
+    ]);
+    
+    ctx.reply('👑 እንኳን ወደ አድሚን ማጥፊያ ፓናል በሰላም መጡ። ማስተዳደር የሚፈልጉትን ዘርፍ ይምረጡ፦', adminMenu);
+});
+
+// 1. የሲሚንቶ ማጥፊያ ዝርዝር
+bot.action('adm_manage_cement', async (ctx) => {
+    const sellers = await CementSeller.find({});
+    if (sellers.length === 0) return ctx.reply('🧱 ምንም የተመዘገበ የሲሚንቶ ሻጭ የለም።');
+    
+    const buttons = sellers.map(s => [
+        Markup.button.callback(`🧱 ${s.companyName || 'ሲሚንቶ'} (${s.type})`, 'none'),
+        Markup.button.callback('❌ ሰርዝ', `adm_del_cement_${s._id}`)
+    ]);
+    ctx.reply('ለማጥፋት ❌ ሰርዝ የሚለውን ይጫኑ፦', Markup.inlineKeyboard(buttons));
+    ctx.answerCbQuery();
+});
+
+// 2. የመኪና ማጥፊያ ዝርዝር
+bot.action('adm_manage_truck', async (ctx) => {
+    const trucks = await TruckLeasor.find({});
+    if (trucks.length === 0) return ctx.reply('🚚 ምንም የተመዘገበ መኪና የለም።');
+    
+    const buttons = trucks.map(t => [
+        Markup.button.callback(`🚚 ታርጋ፦ ${t.plate} (${t.type})`, 'none'),
+        Markup.button.callback('❌ ሰርዝ', `adm_del_truck_${t._id}`)
+    ]);
+    ctx.reply('ለማጥፋት ❌ ሰርዝ የሚለውን ይጫኑ፦', Markup.inlineKeyboard(buttons));
+    ctx.answerCbQuery();
+});
+
+// 3. የብረት ማጥፊያ ዝርዝር
+bot.action('adm_manage_steel', async (ctx) => {
+    const steels = await SteelSeller.find({});
+    if (steels.length === 0) return ctx.reply('🟥 ምንም የተመዘገበ የብረት ሻጭ የለም።');
+    
+    const buttons = steels.map(s => [
+        Markup.button.callback(`🟥 አይነት፦ ${s.type}`, 'none'),
+        Markup.button.callback('❌ ሰርዝ', `adm_del_steel_${s._id}`)
+    ]);
+    ctx.reply('ለማጥፋት ❌ ሰርዝ የሚለውን ይጫኑ፦', Markup.inlineKeyboard(buttons));
+    ctx.answerCbQuery();
+});
+
+// --- የማጥፊያ ተግባራት (Delete Actions) ---
+bot.action(/^adm_del_cement_(.+)$/, async (ctx) => {
+    await CementSeller.findByIdAndDelete(ctx.match);
+    ctx.reply('🧱 የሲሚንቶ መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
+    ctx.answerCbQuery();
+});
+
+bot.action(/^adm_del_truck_(.+)$/, async (ctx) => {
+    await TruckLeasor.findByIdAndDelete(ctx.match);
+    ctx.reply('🚚 የመኪናው መረጃ ከዳታቤዝ ላይ ተሰርዟል!');
+    ctx.answerCbQuery();
+});
+
+bot.action(/^adm_del_steel_(.+)$/, async (ctx) => {
+    await SteelSeller.findByIdAndDelete(ctx.match);
+    ctx.reply('🟥 የብረት መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
+    ctx.answerCbQuery();
+});
+
+bot.action('none', (ctx) => ctx.answerCbQuery());
 
 // --- 🌐 Render ፖርት ማስከፈቻ የዌብ ሰርቨር ---
 const PORT = process.env.PORT || 3000;
