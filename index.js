@@ -99,12 +99,24 @@ bot.hears('🧱 ሲሚንቶ ለመግዛት', (ctx) => {
     ctx.reply('1. ምን አይነት ሲሚንቶ ነው የሚፈልጉት?');
 });
 
-// --- 🚚 መኪና ክፍል ---
+// --- 🚚 መኪና ክፍል (ባለብዙ መኪና ማስተናገጃ ፓናል አዲስ ሎጅክ) ---
 bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     ctx.session = {};
-    ctx.session.action = 'REG_TRUCK_1';
-    ctx.session.truckData = {};
-    ctx.reply('ለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
+    const myTrucks = await TruckLeasor.find({ userId: ctx.from.id });
+    
+    if (myTrucks.length > 0) {
+        // የተመዘገቡ መኪናዎች ካሉ በዝርዝር በተን መልክ ያመጣቸዋል
+        const buttons = myTrucks.map(t => [
+            Markup.button.callback(`🚚 ታርጋ፡ ${t.plate} (${t.status === 'active' ? '✅ ዝግጁ' : '❌ ስራ ላይ'})`, `manage_tr_${t._id}`)
+        ]);
+        buttons.push([Markup.button.callback('➕ አዲስ መኪና መዝግብ', 'truck_new_reg')]);
+        
+        ctx.reply('የእርስዎ የተመዘገቡ መኪናዎች ዝርዝር ከዚህ በታች ይገኛል። ማስተካከል የሚፈልጉትን መኪና ይጫኑ፦', Markup.inlineKeyboard(buttons));
+    } else {
+        ctx.session.action = 'REG_TRUCK_1';
+        ctx.session.truckData = {};
+        ctx.reply('ለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
+    }
 });
 
 bot.hears('🚚 መኪና ለመከራየት', (ctx) => {
@@ -163,12 +175,10 @@ function createSearchRegex(input) {
     if (!input) return new RegExp('', 'i');
     let clean = input.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     
-    // ቃሉ የላቲን (English) ፊደል ከያዘ ብቻ Fuzzy ያደርጋል፣ ለአማርኛ ግን ቀጥታ ያነባታል
     if (/[a-zA-Z]/.test(clean)) {
         const fuzzyPattern = clean.split('').map(char => `${char}*`).join('.*');
         return new RegExp(fuzzyPattern, 'i');
     } else {
-        // ለአማርኛ ቃላት ከፊትም ከኋላም በከፊል ቢጻፍ እንኳ እንዲያገኘው ያደርጋል (ለምሳሌ "ጎንደ" ቢባል "ጎንደር"ን ያገኛል)
         return new RegExp(clean, 'i');
     }
 }
@@ -259,6 +269,18 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = null;
         ctx.reply('መኪናዎ በትክክል ተመዝግቧል! ፈላጊ ሲኖር እናሳቆታለን።');
     }
+    // 🔥 አዲስ የጉዞ መስመር መቀየሪያ ፅሁፍ መቀበያ ሎጅክ
+    else if (action === 'UPDATE_TRUCK_ROUTE') {
+        const truckId = ctx.session.targetTruckId;
+        if (truckId) {
+            await TruckLeasor.findByIdAndUpdate(truckId, { route: text });
+            ctx.reply(`የመኪናዎ የጉዞ መስመር ወደ [ ${text} ] በተሳካ ሁኔታ ተቀይሯል!`);
+        } else {
+            ctx.reply('የተመረጠ መኪና አልተገኘም፣ እባክዎ እንደገና ይሞክሩ።');
+        }
+        ctx.session.action = null;
+        ctx.session.targetTruckId = null;
+    }
     else if (action === 'RENT_TRUCK_1') {
         ctx.session.rentTruck = { type: text };
         ctx.session.action = 'RENT_TRUCK_2';
@@ -279,7 +301,6 @@ bot.on('text', async (ctx, next) => {
 
         const typeRegex = createSearchRegex(ctx.session.rentTruck.type);
 
-        // 🔥 መኪናዎችን በየተራ ፍትሃዊ በሆነ መንገድ (Fair Load Balancing) የሚያፈራርቅበት ምርጥ ሎጅክ
         const foundTruck = await TruckLeasor.findOne({ 
             type: typeRegex,
             route: searchRegex, 
@@ -401,6 +422,54 @@ bot.action('cement_update_price', (ctx) => {
     ctx.reply('አዲሱን የአንድ ኩንታል ዋጋ ያስገቡ፡'); ctx.answerCbQuery();
 });
 
+// 🔥 🔥 መኪናዎችን ለየብቻ ማስተዳደሪያ በተኖች (አዲስ ክፍል) 🔥 🔥
+bot.action('truck_new_reg', (ctx) => {
+    ctx.session.action = 'REG_TRUCK_1';
+    ctx.session.truckData = {};
+    ctx.reply('ለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
+    ctx.answerCbQuery();
+});
+
+bot.action(/^manage_tr_(.+)$/, async (ctx) => {
+    const truckId = ctx.match;
+    const truck = await TruckLeasor.findById(truckId);
+    if (!truck) return ctx.reply('ይቅርታ መኪናው አልተገኘም!');
+
+    const truckMenu = Markup.inlineKeyboard([
+        [
+            Markup.button.callback('✅ ዝግጁ (Active)', `tr_act_${truckId}`),
+            Markup.button.callback('❌ ስራ ላይ (Off)', `tr_off_${truckId}`)
+        ],
+        [Markup.button.callback('📍 የጉዞ መስመር ለመቀየር', `tr_route_${truckId}`)]
+    ]);
+
+    ctx.reply(`🚚 የመኪና ማስተዳደሪያ ፓናል\n\n• አይነት፦ ${truck.type}\n• ታርጋ፦ ${truck.plate}\n• የአሁን መስመር፦ ${truck.route}\n• የአሁን ሁኔታ፦ ${truck.status === 'active' ? '✅ ዝግጁ' : '❌ ስራ ላይ'}`, truckMenu);
+    ctx.answerCbQuery();
+});
+
+bot.action(/^tr_act_(.+)$/, async (ctx) => {
+    const truckId = ctx.match;
+    await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
+    ctx.reply('የመኪናው ሁኔታ ወደ [✅ ዝግጁ] ተቀይሯል።');
+    ctx.answerCbQuery();
+});
+
+bot.action(/^tr_off_(.+)$/, async (ctx) => {
+    const truckId = ctx.match;
+    await TruckLeasor.findByIdAndUpdate(truckId, { status: 'off' });
+    ctx.reply('የመኪናው ሁኔታ ወደ [❌ ስራ ላይ / የለም] ተቀይሯል።');
+    ctx.answerCbQuery();
+});
+
+bot.action(/^tr_route_(.+)$/, (ctx) => {
+    const truckId = ctx.match;
+    ctx.session.action = 'UPDATE_TRUCK_ROUTE';
+    ctx.session.targetTruckId = truckId;
+    ctx.reply('እባክዎ አዲሱን የመኪናውን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ናዝሬት)፦');
+    ctx.answerCbQuery();
+});
+
+// --- 🟥 ብረት በተኖች ---
 bot.action('steel_active', async (ctx) => {
     await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
     ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery();
@@ -414,6 +483,7 @@ bot.action('steel_update_price', (ctx) => {
     ctx.reply('አዲሱን የብረት ዋጋ ያስገቡ፡'); ctx.answerCbQuery();
 });
 
+// --- 🔹 ማሽነሪ በተኖች ---
 bot.action('machinery_active', async (ctx) => {
     await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
     ctx.reply('ማሽነሪዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery();
