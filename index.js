@@ -39,7 +39,7 @@ const BotSession = mongoose.model('BotSession', new mongoose.Schema({
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// 🔄 የሴሽን መደባለቅን የሚፈታው Custom MongoDB Session Middleware
+// 🔄 የሴሽን መደባлеቅን የሚፈታው Custom MongoDB Session Middleware
 bot.use(async (ctx, next) => {
     if (!ctx.from) return next();
     
@@ -170,7 +170,7 @@ bot.hears('🧱 ሲሚንቶ ለመግዛት', (ctx) => {
     ctx.reply('1. ምን አይነት ሲሚንቶ ነው የሚፈልጉት?');
 });
 
-// --- 🚚 መኪና ለማከራየት (የተስተካከለና እጅግ የፀዳ አቀማመጥ) ---
+// --- 🚚 መኪና ለማከራየት (የታረመና ፅዱ አቀማመጥ) ---
 bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     ctx.session.action = null;
     const myTrucks = await TruckLeasor.find({ userId: ctx.from.id });
@@ -179,12 +179,10 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     if (myTrucks.length > 0) {
         let buttons = [];
         myTrucks.forEach(t => {
-            const currentStatus = t.status === 'active' ? '🟢 ዝግጁ' : '🔴 ስራ ላይ';
+            // 🛑 ማሻሻያ፡ ከተርጋው ጎን የነበሩት [🔴 ስራ ላይ] ወይም [🟢 ዝግጁ] የሚሉ ፅሁፎች ሙሉ በሙሉ ጠፍተዋል
+            buttons.push([Markup.button.callback(`🇪🇹 ታርጋ፡ ${t.plate} (${t.type})`, 'none')]);
             
-            // መስመር 1፡ የመኪናው ታርጋ እና የአሁን ሁኔታ መረጃ ብቻ
-            buttons.push([Markup.button.callback(`🇪🇹 ታርጋ፡ ${t.plate} (${t.type}) [${currentStatus}]`, 'none')]);
-            
-            // መስመር 2፡ የሁኔታ መቀየሪያ እና የጉዞ መስመር ማስተካከያ በአንድነት
+            // ከታች ያሉት መደበኛ መቆጣጠሪያ በተኖች ግን በስራቸው ይቆያሉ
             buttons.push([
                 Markup.button.callback('🟢 ዝግጁ', `tr_act_${t._id}`),
                 Markup.button.callback('🔴 ስራ ላይ', `tr_off_${t._id}`),
@@ -192,7 +190,6 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
             ]);
         });
         
-        // አዲስ መኪና መመዝገቢያ በተን መጨረሻ ላይ
         buttons.push([Markup.button.callback('➕ አዲስ መኪና ለመመዝገብ', 'truck_new_reg')]);
         
         ctx.reply(`እንኳን ደህና መጡ ${name}!\n\n📋 የእርስዎ መኪናዎች ማስተዳደሪያ ፓናል፦`, Markup.inlineKeyboard(buttons));
