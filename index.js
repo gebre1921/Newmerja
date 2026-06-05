@@ -158,13 +158,19 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
     ctx.reply('1. የሚፈልጉት የማሽነሪ አይነት ያስገቡ፡');
 });
 
-// 💡 የፊደል ስህተትን (Spelling Error) መቋቋሚያ ረዳት ፈንክሽን
-function createFuzzyRegex(input) {
+// 💡 የአማርኛ እና የእንግሊዘኛ የፊደል ስህተቶችን በአስተማማኝ ሁኔታ መፈለጊያ ፈንክሽን
+function createSearchRegex(input) {
     if (!input) return new RegExp('', 'i');
-    const clean = input.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // እያንዳንዱን ፊደል በመለየት በመሀል እና በመጨረሻ ተጨማሪ የፊደል ግድፈቶች ቢኖሩ እንኳ እንዲያገኘው ያደርጋል
-    const fuzzyPattern = clean.split('').map(char => `${char}*`).join('.*');
-    return new RegExp(fuzzyPattern, 'i');
+    let clean = input.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    // ቃሉ የላቲን (English) ፊደል ከያዘ ብቻ Fuzzy ያደርጋል፣ ለአማርኛ ግን ቀጥታ ያነባታል
+    if (/[a-zA-Z]/.test(clean)) {
+        const fuzzyPattern = clean.split('').map(char => `${char}*`).join('.*');
+        return new RegExp(fuzzyPattern, 'i');
+    } else {
+        // ለአማርኛ ቃላት ከፊትም ከኋላም በከፊል ቢጻፍ እንኳ እንዲያገኘው ያደርጋል (ለምሳሌ "ጎንደ" ቢባል "ጎንደር"ን ያገኛል)
+        return new RegExp(clean, 'i');
+    }
 }
 
 // --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ (Text Handler) ---
@@ -216,8 +222,7 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'BUY_CEMENT_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'BUY_CEMENT_3') {
-        // 🔥 የፊደል ስህተት ቢኖር እንኳ ፈላጊው እንዲያገኝ ተደርጓል
-        const searchRegex = createFuzzyRegex(ctx.session.buyCement.type);
+        const searchRegex = createSearchRegex(ctx.session.buyCement.type);
         const available = await CementSeller.findOne({ type: searchRegex, status: 'active' });
         if (available) {
             ctx.reply(`የጠየቁት የሲሚንቶ አይነት እኛ ጋር ይገኛል\nየአሁን ዋጋ፡ ${available.price} ብር\nበ 0960336138 ደውለው ማዘዝ ይችላሉ`);
@@ -265,16 +270,16 @@ bot.on('text', async (ctx, next) => {
     } else if (action === 'RENT_TRUCK_3') {
         const cleanRoute = ctx.session.rentTruck.route.toLowerCase();
         
-        // 🔥 አማርኛም ሆነ እንግሊዘኛ የፊደል ስህተት ቢኖር እንኳ የሚፈልገውን መስመር በጥራት የሚያገኝ Fuzzy Search ሎጅክ
         let searchRegex;
         if (cleanRoute.includes("gondar") || cleanRoute.includes("ጎንደር") || cleanRoute.includes("gondr") || cleanRoute.includes("gonder")) {
             searchRegex = new RegExp("(gondar|ጎንደር|gondr|gonder)", "i");
         } else {
-            searchRegex = createFuzzyRegex(ctx.session.rentTruck.route);
+            searchRegex = createSearchRegex(ctx.session.rentTruck.route);
         }
 
-        const typeRegex = createFuzzyRegex(ctx.session.rentTruck.type);
+        const typeRegex = createSearchRegex(ctx.session.rentTruck.type);
 
+        // 🔥 መኪናዎችን በየተራ ፍትሃዊ በሆነ መንገድ (Fair Load Balancing) የሚያፈራርቅበት ምርጥ ሎጅክ
         const foundTruck = await TruckLeasor.findOne({ 
             type: typeRegex,
             route: searchRegex, 
@@ -327,8 +332,7 @@ bot.on('text', async (ctx, next) => {
         ctx.session.action = 'BUY_STEEL_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'BUY_STEEL_3') {
-        // 🔥 የፊደል ስህተት ማረሚያ ለብረት ፍለጋ
-        const searchRegex = createFuzzyRegex(ctx.session.buySteel.type);
+        const searchRegex = createSearchRegex(ctx.session.buySteel.type);
         const available = await SteelSeller.findOne({ type: searchRegex, status: 'active' });
         if (available) {
             ctx.reply('የጠየቁት የብረት አይነቶች እኛ ጋር ይገኛሉ ለማዘዝ በ 0960336138 ይደውሉልን');
@@ -368,8 +372,7 @@ bot.on('text', async (ctx, next) => {
         ctx.session.rentMachinery.action = 'RENT_MACHINERY_3';
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'RENT_MACHINERY_3') {
-        // 🔥 የፊደል ስህተት ማረሚያ ለማሽነሪ ፍለጋ
-        const searchRegex = createFuzzyRegex(ctx.session.rentMachinery.type);
+        const searchRegex = createSearchRegex(ctx.session.rentMachinery.type);
         const available = await MachineryLeasor.findOne({ type: searchRegex, status: 'active' });
         if (available) {
             ctx.reply('የጠየቁት የማሽነሪ አይነት እኛ ጋር ይገኛል ማሽነሪውን ለመከራየት በ0960336138 ይደውሉልን');
@@ -494,3 +497,10 @@ bot.action('none', (ctx) => ctx.answerCbQuery());
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is Running!');
+}).listen(PORT);
+
+bot.launch().then(() => console.log('ቦቱ አሁን ንፁህ ነው፤ አድሚን ፓናሉም በትክክል እየሰራ ነው!'));
+
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
