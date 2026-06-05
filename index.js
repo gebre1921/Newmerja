@@ -32,6 +32,26 @@ const TruckLeasor = mongoose.model('TruckLeasor', new mongoose.Schema({
     rentedCount: { type: Number, default: 0 } 
 }));
 
+// 🆕 አዲስ ሰንጠረዥ፦ የፈላጊዎች የፍለጋ መዝገብ (Search Logs)
+const SearchLog = mongoose.model('SearchLog', new mongoose.Schema({
+    userId: Number,
+    username: String,
+    category: String, // ሲሚንቶ፣ መኪና፣ ብረት፣ ማሽነሪ
+    searchedFor: String, // የፈለጉት ነገር ዝርዝር
+    phone: String,
+    createdAt: { type: Date, default: Date.now }
+}));
+
+// 🆕 አዲስ ሰንጠረዥ፦ የየቀኑ የActive ተጠቃሚዎች መዝገብ (Active Logs)
+const ActiveLog = mongoose.model('ActiveLog', new mongoose.Schema({
+    userId: Number,
+    name: String,
+    category: String, // ሲሚንቶ፣ መኪና፣ ብረት፣ ማሽነሪ
+    detail: String, // ታርጋ ወይም የድርጅት ስም
+    dateStr: String, // YYYY-MM-DD (ለቀን ፍለጋ እንዲያመች)
+    createdAt: { type: Date, default: Date.now }
+}));
+
 const BotSession = mongoose.model('BotSession', new mongoose.Schema({
     key: { type: String, required: true, unique: true },
     data: { type: Object, default: {} }
@@ -39,7 +59,7 @@ const BotSession = mongoose.model('BotSession', new mongoose.Schema({
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// 🔄 የሴሽን መደባлеቅን የሚፈታው Custom MongoDB Session Middleware
+// 🔄 የሴሽን መደባለቅን የሚፈታው Custom MongoDB Session Middleware
 bot.use(async (ctx, next) => {
     if (!ctx.from) return next();
     
@@ -52,6 +72,14 @@ bot.use(async (ctx, next) => {
     await next();
     await BotSession.updateOne({ key: sessionKey }, { $set: { data: ctx.session } });
 });
+
+// Helper ተግባር የዛሬውን ቀን በደብዳቤ ፎርማት ለማግኘት (አዲስ አበባ ሰዓት)
+function getTodayDateString() {
+    const d = new Date();
+    // ወደ ኢትዮጵያ ሰዓት (UTC+3) ለማስተካከል
+    d.setHours(d.getHours() + 3);
+    return d.toISOString().split('T');
+}
 
 // --- ⌨️ ዋና ሜኑ ---
 const mainKeyboard = Markup.keyboard([
@@ -79,6 +107,8 @@ bot.command('admin_panel', async (ctx) => {
     const adminMenu = Markup.inlineKeyboard([
         [Markup.button.callback('📊 ሲሚንቶ ሪፖርት', 'rep_cement'), Markup.button.callback('📊 መኪና ሪፖርት', 'rep_truck')],
         [Markup.button.callback('📊 ብረት ሪፖርት', 'rep_steel'), Markup.button.callback('📊 ማሽነሪ ሪፖርት', 'rep_machinery')],
+        [Markup.button.callback('🔍 የፈላጊዎች ፍላጎት ሪፖርት', 'rep_searches')],
+        [Markup.button.callback('📅 የዛሬ Active ተጠቃሚዎች', 'rep_actives')],
         [Markup.button.callback('❌ ማጥፊያ ፓናል', 'admin_delete_menu')]
     ]);
     ctx.reply('👑 እንኳን ወደ አድሚን ፓናል በሰላም መጡ። ማየት ወይንም ማጥፋት የሚፈልጉትን ይምረጡ፦', adminMenu);
@@ -125,6 +155,29 @@ bot.action('rep_machinery', async (ctx) => {
     ctx.reply(msg); ctx.answerCbQuery();
 });
 
+// 🆕 አዲስ የአድሚን ሪፖርት፦ ፈላጊዎች የፈለጉት መዝገብ ማሳያ
+bot.action('rep_searches', async (ctx) => {
+    const logs = await SearchLog.find({}).sort({ createdAt: -1 }).limit(30);
+    if (logs.length === 0) return ctx.reply('🔍 እስካሁን ምንም የፍለጋ ታሪክ አልተመዘገበም።');
+    let msg = '🔍 የፈላጊዎች ፍላጎት ሪፖርት (የመጨረሻዎቹ 30)፦\n\n';
+    logs.forEach((log, idx) => {
+        msg += `${idx + 1}. ዘርፍ: ${log.category}\n   የፈለገው: ${log.searchedFor}\n   የፈላጊው ስልክ: ${log.phone}\n   ቀን: ${log.createdAt.toLocaleDateString('en-US')}\n────────────────\n`;
+    });
+    ctx.reply(msg); ctx.answerCbQuery();
+});
+
+// 🆕 አዲስ የአድሚን ሪፖርት፦ የዛሬ Active የሆኑ ተጠቃሚዎች የየቀኑ ሪፖርት
+bot.action('rep_actives', async (ctx) => {
+    const todayStr = getTodayDateString();
+    const logs = await ActiveLog.find({ dateStr: todayStr }).sort({ createdAt: -1 });
+    if (logs.length === 0) return ctx.reply(`📅 ዛሬ (${todayStr}) ሁኔታቸውን Active ያደረጉ ተጠቃሚዎች የሉም።`);
+    let msg = `📅 የዛሬ (${todayStr}) የActive ተጠቃሚዎች ሪፖርት፦\n\n`;
+    logs.forEach((log, idx) => {
+        msg += `${idx + 1}. ስም: ${log.name}\n   ዘርፍ: ${log.category}\n   ዝርዝር: ${log.detail}\n   ሰዓት: ${log.createdAt.toLocaleTimeString('en-US')}\n────────────────\n`;
+    });
+    ctx.reply(msg); ctx.answerCbQuery();
+});
+
 bot.action('admin_delete_menu', (ctx) => {
     const delMenu = Markup.inlineKeyboard([
         [Markup.button.callback('🧱 ሲሚንቶ አጥፋ', 'adm_manage_cement')],
@@ -161,7 +214,7 @@ bot.hears('🧱 ሲሚንቶ ለመሸጥ', async (ctx) => {
         ctx.reply(`እንኳን ደህና መጡ ${name}!\n\nየአሁኑ ሁኔታዎ፦ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}\nእባክዎ ከታች ካሉት አማራጮች አንዱን ይምረጡ፦`, cementSellerInline);
     } else {
         ctx.session.action = 'REG_CEMENT_1';
-        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ።\n\nየሲሚንቶ አይነት ያስገቡ፡`);
+        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ。\n\nየሲሚንቶ አይነት ያስገቡ፡`);
     }
 });
 
@@ -170,7 +223,7 @@ bot.hears('🧱 ሲሚንቶ ለመግዛት', (ctx) => {
     ctx.reply('1. ምን አይነት ሲሚንቶ ነው የሚፈልጉት?');
 });
 
-// --- 🚚 መኪና ለማከራየት (የታረመና ፅዱ አቀማመጥ) ---
+// --- 🚚 መኪና ለማከራየት ---
 bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     ctx.session.action = null;
     const myTrucks = await TruckLeasor.find({ userId: ctx.from.id });
@@ -179,10 +232,7 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     if (myTrucks.length > 0) {
         let buttons = [];
         myTrucks.forEach(t => {
-            // 🛑 ማሻሻያ፡ ከተርጋው ጎን የነበሩት [🔴 ስራ ላይ] ወይም [🟢 ዝግጁ] የሚሉ ፅሁፎች ሙሉ በሙሉ ጠፍተዋል
             buttons.push([Markup.button.callback(`🇪🇹 ታርጋ፡ ${t.plate} (${t.type})`, 'none')]);
-            
-            // ከታች ያሉት መደበኛ መቆጣጠሪያ በተኖች ግን በስራቸው ይቆያሉ
             buttons.push([
                 Markup.button.callback('🟢 ዝግጁ', `tr_act_${t._id}`),
                 Markup.button.callback('🔴 ስራ ላይ', `tr_off_${t._id}`),
@@ -191,12 +241,11 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
         });
         
         buttons.push([Markup.button.callback('➕ አዲስ መኪና ለመመዝገብ', 'truck_new_reg')]);
-        
         ctx.reply(`እንኳን ደህና መጡ ${name}!\n\n📋 የእርስዎ መኪናዎች ማስተዳደሪያ ፓናል፦`, Markup.inlineKeyboard(buttons));
     } else {
         ctx.session.action = 'REG_TRUCK_1';
         ctx.session.truckData = {};
-        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ።\n\nለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡`);
+        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ。\n\nለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡`);
     }
 });
 
@@ -215,7 +264,7 @@ bot.hears('🟥 ብረት ለመሸጥ', async (ctx) => {
         ctx.reply(`እንኳን ደህና መጡ ${name}!\n\nየአሁኑ ሁኔታዎ፦ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}\nእባክዎ ከታች ካሉት አማራጮች አንዱን ይምረጡ፦`, steelSellerInline);
     } else {
         ctx.session.action = 'REG_STEEL_1';
-        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ።\n\n1. የብረት አይነቶችን ያስገቡ፡`);
+        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ。\n\n1. የብረት አይነቶችን ያስገቡ፡`);
     }
 });
 
@@ -234,7 +283,7 @@ bot.hears('🔹 ማሽነሪ ለማከራየት', async (ctx) => {
         ctx.reply(`እንኳን ደህና መጡ ${name}!\n\nየአሁኑ ሁኔታዎ፦ ${existing.status === 'active' ? '✅ አለ' : '❌ የለም'}\nእባክዎ ከታች ካሉት አማራጮች አንዱን ይምረጡ፦`, machineryLeasorInline);
     } else {
         ctx.session.action = 'REG_MACHINERY_1';
-        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ።\n\n1. የማሽነሪው አይነት ያስገቡ፡`);
+        ctx.reply(`እንኳን ደህና መጡ! ለመጠቀም እባክዎ መጀመሪያ ይመዝገቡ。\n\n1. የማሽነሪው አይነት ያስገቡ፡`);
     }
 });
 
@@ -284,6 +333,10 @@ bot.on('text', async (ctx, next) => {
         ctx.session.cementData.price = 1300; 
         ctx.session.cementData.status = 'active';
         await CementSeller.findOneAndUpdate({ userId }, ctx.session.cementData, { upsert: true });
+        
+        // Active ሲሆን ይመዝግብ
+        await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🧱 ሲሚንቶ ሻጭ', detail: ctx.session.cementData.companyName, dateStr: getTodayDateString() });
+        
         ctx.session.action = null;
         ctx.reply('መረጃዎ በትክክል ተመዝግቧል! አሁን እርስዎ በተሳካ ሁኔታ ተመዝግበዋል።', cementSellerInline);
     }
@@ -304,6 +357,10 @@ bot.on('text', async (ctx, next) => {
     } else if (action === 'BUY_CEMENT_3') {
         ctx.session.buyCement = ctx.session.buyCement || {};
         ctx.session.buyCement.phone = text;
+        
+        // 🆕 ፈላጊ የፈለገውን መመዝገብ
+        await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🧱 ሲሚንቶ ፈላጊ', searchedFor: `አይነት: ${ctx.session.buyCement.type}, አድራሻ: ${ctx.session.buyCement.address}`, phone: text });
+
         const searchRegex = createSearchRegex(ctx.session.buyCement.type);
         const available = await CementSeller.findOne({ type: searchRegex, status: 'active' });
         if (available) {
@@ -334,6 +391,10 @@ bot.on('text', async (ctx, next) => {
         ctx.session.truckData.status = 'active';
         ctx.session.truckData.rentedCount = 0; 
         await TruckLeasor.findOneAndUpdate({ userId: userId, plate: ctx.session.truckData.plate }, ctx.session.truckData, { upsert: true });
+        
+        // Active ሲሆን ይመዝግብ
+        await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🚚 መኪና አከራይ', detail: `ታርጋ: ${ctx.session.truckData.plate} (${ctx.session.truckData.type})`, dateStr: getTodayDateString() });
+
         ctx.session.action = null;
         ctx.reply('መኪናዎ በትክክል ተመዝግቧል! ፈላጊ ሲኖር እናሳቆታለን።');
     }
@@ -360,6 +421,10 @@ bot.on('text', async (ctx, next) => {
     } else if (action === 'RENT_TRUCK_3') {
         ctx.session.rentTruck = ctx.session.rentTruck || {};
         ctx.session.rentTruck.phone = text; 
+        
+        // 🆕 ፈላጊ የፈለገውን መመዝገብ
+        await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🚚 መኪና ፈላጊ', searchedFor: `አይነት: ${ctx.session.rentTruck.type}, መስመር: ${ctx.session.rentTruck.route}`, phone: text });
+
         const userRoute = ctx.session.rentTruck.route || "";
         const cleanRoute = userRoute.toLowerCase();
         let searchRegex = (cleanRoute.includes("gondar") || cleanRoute.includes("ጎንደር") || cleanRoute.includes("gondr") || cleanRoute.includes("gonder")) ? new RegExp("(gondar|ጎንደር|gondr|gonder)", "i") : createSearchRegex(userRoute);
@@ -394,6 +459,10 @@ bot.on('text', async (ctx, next) => {
         ctx.session.steelData.userId = userId;
         ctx.session.steelData.status = 'active';
         await SteelSeller.findOneAndUpdate({ userId }, ctx.session.steelData, { upsert: true });
+        
+        // Active ሲሆን ይመዝግብ
+        await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🟥 ብረት ሻጭ', detail: ctx.session.steelData.type, dateStr: getTodayDateString() });
+
         ctx.session.action = null;
         ctx.reply('የብረት መረጃዎ በተሳካ ሁኔታ ተመዝግቧል!', steelSellerInline);
     }
@@ -414,6 +483,10 @@ bot.on('text', async (ctx, next) => {
     } else if (action === 'BUY_STEEL_3') {
         ctx.session.buySteel = ctx.session.buySteel || {};
         ctx.session.buySteel.phone = text;
+        
+        // 🆕 ፈላጊ የፈለገውን መመዝገብ
+        await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🟥 ብረት ፈላጊ', searchedFor: `አይነት: ${ctx.session.buySteel.type}, ቦታ: ${ctx.session.buySteel.address}`, phone: text });
+
         const searchRegex = createSearchRegex(ctx.session.buySteel.type);
         const available = await SteelSeller.findOne({ type: searchRegex, status: 'active' });
         if (available) {
@@ -443,6 +516,10 @@ bot.on('text', async (ctx, next) => {
         ctx.session.machineryData.price = text;
         ctx.session.machineryData.status = 'active';
         await MachineryLeasor.findOneAndUpdate({ userId }, ctx.session.machineryData, { upsert: true });
+        
+        // Active ሲሆን ይመዝግብ
+        await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🔹 ማሽነሪ አከራይ', detail: ctx.session.machineryData.type, dateStr: getTodayDateString() });
+
         ctx.session.action = null;
         ctx.reply('ማሽነሪዎ በትክክል ተመዝግቧል!', machineryLeasorInline);
     }
@@ -458,6 +535,10 @@ bot.on('text', async (ctx, next) => {
     } else if (action === 'RENT_MACHINERY_3') {
         ctx.session.rentMachinery = ctx.session.rentMachinery || {};
         ctx.session.rentMachinery.phone = text; 
+        
+        // 🆕 ፈላጊ የፈለገውን መመዝገብ
+        await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🔹 ማሽነሪ ፈላጊ', searchedFor: `አይነት: ${ctx.session.rentMachinery.type}, አድራሻ: ${ctx.session.rentMachinery.address}`, phone: text });
+
         const searchRegex = createSearchRegex(ctx.session.rentMachinery.type);
         const available = await MachineryLeasor.findOne({ type: searchRegex, status: 'active' });
         if (available) {
@@ -469,21 +550,37 @@ bot.on('text', async (ctx, next) => {
     }
 });
 
-// --- 🔘 የውስጥ በተኖች አሠራር ---
-bot.action('cement_active', async (ctx) => { await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('ሁኔታዎ ወደ [✅ አለ] ተቀይሯል።'); ctx.answerCbQuery(); });
+// --- 🔘 የውስጥ በተኖች አሠራር (ከActive መዝገብ ጋር) ---
+bot.action('cement_active', async (ctx) => { 
+    const data = await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); 
+    if(data) await ActiveLog.create({ userId: ctx.from.id, name: ctx.from.first_name || 'ተጠቃሚ', category: '🧱 ሲሚንቶ ሻጭ', detail: data.companyName || 'የተመዘገበ ድርጅት', dateStr: getTodayDateString() });
+    ctx.reply('ሁኔታዎ ወደ [✅ አለ] ተቀይሯል።'); ctx.answerCbQuery(); 
+});
 bot.action('cement_off', async (ctx) => { await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('ሁኔታዎ ወደ [❌ የለም] ተቀይሯል።'); ctx.answerCbQuery(); });
 bot.action('cement_update_price', (ctx) => { ctx.session.action = 'UPDATE_CEMENT_PRICE'; ctx.reply('አዲሱን የአንድ ኩንታል ዋጋ ያስገቡ፡'); ctx.answerCbQuery(); });
 bot.action('truck_new_reg', (ctx) => { ctx.session.action = 'REG_TRUCK_1'; ctx.session.truckData = {}; ctx.reply('ለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡'); ctx.answerCbQuery(); });
 
-bot.action(/^tr_act_(.+)$/, async (ctx) => { await TruckLeasor.findByIdAndUpdate(ctx.match, { status: 'active' }); ctx.reply('የመኪናው ሁኔታ ወደ [🟢 ዝግጁ] ተቀይሯል።'); ctx.answerCbQuery(); });
+bot.action(/^tr_act_(.+)$/, async (ctx) => { 
+    const data = await TruckLeasor.findByIdAndUpdate(ctx.match, { status: 'active' }); 
+    if(data) await ActiveLog.create({ userId: ctx.from.id, name: ctx.from.first_name || 'ተጠቃሚ', category: '🚚 መኪና አከራይ', detail: `ታርጋ: ${data.plate}`, dateStr: getTodayDateString() });
+    ctx.reply('የመኪናው ሁኔታ ወደ [🟢 ዝግጁ] ተቀይሯል።'); ctx.answerCbQuery(); 
+});
 bot.action(/^tr_off_(.+)$/, async (ctx) => { await TruckLeasor.findByIdAndUpdate(ctx.match, { status: 'off' }); ctx.reply('የመኪናው ሁኔታ ወደ [🔴 ስራ ላይ] ተቀይሯል።'); ctx.answerCbQuery(); });
 bot.action(/^tr_route_(.+)$/, (ctx) => { ctx.session.action = 'UPDATE_TRUCK_ROUTE'; ctx.session.targetTruckId = ctx.match; ctx.reply('እባክዎ አዲሱን የመኪናውን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ናዝሬት)፦'); ctx.answerCbQuery(); });
 
-bot.action('steel_active', async (ctx) => { await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery(); });
+bot.action('steel_active', async (ctx) => { 
+    const data = await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); 
+    if(data) await ActiveLog.create({ userId: ctx.from.id, name: ctx.from.first_name || 'ተጠቃሚ', category: '🟥 ብረት ሻጭ', detail: data.type, dateStr: getTodayDateString() });
+    ctx.reply('የብረት ምርትዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery(); 
+});
 bot.action('steel_off', async (ctx) => { await SteelSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('የብረት ምርትዎ [የለም] ተደርጓል።'); ctx.answerCbQuery(); });
 bot.action('steel_update_price', (ctx) => { ctx.session.action = 'UPDATE_STEEL_PRICE'; ctx.reply('አዲሱን የብረት ዋጋ ያስገቡ፡'); ctx.answerCbQuery(); });
 
-bot.action('machinery_active', async (ctx) => { await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); ctx.reply('ማሽነሪዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery(); });
+bot.action('machinery_active', async (ctx) => { 
+    const data = await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' }); 
+    if(data) await ActiveLog.create({ userId: ctx.from.id, name: ctx.from.first_name || 'ተጠቃሚ', category: '🔹 ማሽነሪ አከራይ', detail: data.type, dateStr: getTodayDateString() });
+    ctx.reply('ማሽነሪዎ ዝግጁ ተደርጓል።'); ctx.answerCbQuery(); 
+});
 bot.action('machinery_off', async (ctx) => { await MachineryLeasor.findOneAndUpdate({ userId: ctx.from.id }, { status: 'off' }); ctx.reply('ማሽነሪዎ [የለም] ተደርጓል።'); ctx.answerCbQuery(); });
 
 // --- ❌ አድሚን ማስተዳደሪያ ማጥፊያዎች ---
