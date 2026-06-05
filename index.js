@@ -107,7 +107,6 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     if (myTrucks.length > 0) {
         let buttons = [];
         
-        // 🛠️ ፊክስ፦ ለእያንዳንዱ መኪና ማስተዳደሪያ በተኖቹን እዚሁ ላይ በግልጽ እንዲመጡ ማድረግ
         myTrucks.forEach(t => {
             buttons.push([Markup.button.callback(`🚚 ታርጋ፦ ${t.plate} (${t.status === 'active' ? '✅ ዝግጁ' : '❌ ስራ ላይ'})`, 'none')]);
             buttons.push([
@@ -179,7 +178,6 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
     ctx.reply('1. የሚፈልጉት የማሽነሪ አይነት ያስገቡ፡');
 });
 
-// 💡 የአማርኛ እና የእንግሊዘኛ የፊደል ስህተቶችን በአስተማማኝ ሁኔታ መፈለጊያ ፈንክሽን
 function createSearchRegex(input) {
     if (!input) return new RegExp('', 'i');
     let clean = input.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -361,7 +359,7 @@ bot.on('text', async (ctx, next) => {
     }
     else if (action === 'UPDATE_STEEL_PRICE') {
         await SteelSeller.findOneAndUpdate({ userId }, { price: text });
-        ctx.reply(`የብረት ዋጋዎ ወደ ${text} ብር ተሻшሏል!`);
+        ctx.reply(`የብረት ዋጋዎ ወደ ${text} ብር ተሻሽሏል!`);
         ctx.session.action = null;
     }
     else if (action === 'BUY_STEEL_1') {
@@ -458,21 +456,21 @@ bot.action('truck_new_reg', (ctx) => {
 });
 
 bot.action(/^tr_act_(.+)$/, async (ctx) => {
-    const truckId = ctx.match;
+    const truckId = ctx.match[1];
     await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
     ctx.reply('የመኪናው ሁኔታ ወደ [✅ ዝግጁ] ተቀይሯል።');
     ctx.answerCbQuery();
 });
 
 bot.action(/^tr_off_(.+)$/, async (ctx) => {
-    const truckId = ctx.match;
+    const truckId = ctx.match[1];
     await TruckLeasor.findByIdAndUpdate(truckId, { status: 'off' });
     ctx.reply('የመኪናው ሁኔታ ወደ [❌ ስራ ላይ / የለም] ተቀይሯል።');
     ctx.answerCbQuery();
 });
 
 bot.action(/^tr_route_(.+)$/, (ctx) => {
-    const truckId = ctx.match;
+    const truckId = ctx.match[1];
     ctx.session.action = 'UPDATE_TRUCK_ROUTE';
     ctx.session.targetTruckId = truckId;
     ctx.reply('እባክዎ አዲሱን የመኪናውን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ናዝሬት)፦');
@@ -549,7 +547,7 @@ bot.action('adm_manage_steel', async (ctx) => {
 // --- 🔥 የተስተካከሉ የማጥፊያ ተግባራት ---
 bot.action(/^del_cem_(.+)$/, async (ctx) => {
     try {
-        await CementSeller.findByIdAndDelete(ctx.match);
+        await CementSeller.findByIdAndDelete(ctx.match[1]);
         ctx.reply('🧱 የሲሚንቶ መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
     } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
     ctx.answerCbQuery();
@@ -557,7 +555,7 @@ bot.action(/^del_cem_(.+)$/, async (ctx) => {
 
 bot.action(/^del_trk_(.+)$/, async (ctx) => {
     try {
-        await TruckLeasor.findByIdAndDelete(ctx.match);
+        await TruckLeasor.findByIdAndDelete(ctx.match[1]);
         ctx.reply('🚚 የመኪናው መረጃ ከዳታቤዝ ላይ ተሰርዟል!');
     } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
     ctx.answerCbQuery();
@@ -565,7 +563,7 @@ bot.action(/^del_trk_(.+)$/, async (ctx) => {
 
 bot.action(/^del_stl_(.+)$/, async (ctx) => {
     try {
-        await SteelSeller.findByIdAndDelete(ctx.match);
+        await SteelSeller.findByIdAndDelete(ctx.match[1]);
         ctx.reply('🟥 የብረት መረጃው ከዳታቤዝ ላይ ተሰርዟል!');
     } catch (e) { ctx.reply('ስህተት፡ መሰረዝ አልተቻለም።'); }
     ctx.answerCbQuery();
@@ -580,7 +578,10 @@ http.createServer((req, res) => {
     res.end('Bot is Running!');
 }).listen(PORT);
 
-bot.launch().then(() => console.log('ቦቱ አሁን ንፁህ ነው፤ አድሚን ፓናሉም በትክክል እየሰራ ነው!'));
+// 🔥 ፊክስ፦ በ 409 Conflict የተነሳ የቆመውን የቴሌግራም ግንኙነት ማጽጃ እና ማስጀመርያ መስመር
+bot.telegram.deleteWebhook({ drop_pending_updates: true }).then(() => {
+    bot.launch().then(() => console.log('ቦቱ ከግጭት ነፃ በሆነ መልኩ በተሳካ ሁኔታ ተነስቷል!'));
+});
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
