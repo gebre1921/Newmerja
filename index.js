@@ -35,7 +35,7 @@ const MachineryLeasor = mongoose.model('MachineryLeasor', { userId: Number, type
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// 🛑 ከስህተት የጸዳ የሴሽን ማኔጀር (In-Memory Session Setup)
+// 🛑 አስተማማኝ የሰሲሽን ማኔጀር
 const userSessions = {};
 function getSession(userId) {
     if (!userSessions[userId]) {
@@ -64,7 +64,7 @@ const cementSellerInline = Markup.inlineKeyboard([
     [Markup.button.callback('➕ አዲስ ለመመዝገብ', 'cement_re_reg'), Markup.button.callback('💰 ዋጋ ለማሻሻል', 'cement_update_price')]
 ]);
 
-// 🚚 ለውጥ፦ "መኪናዬን ሙሉ በሙሉ ሰርዝ" የሚለው በተን ሙሉ በሙሉ እዚህ ተወግዷል!
+// 🚚 ለባለቤቶቹ የሚታይ (የሰርዝ በተን የሌለው)
 const truckLeasorInline = Markup.inlineKeyboard([
     [Markup.button.callback('✅ አለ', 'truck_active'), Markup.button.callback('❌ የለም', 'truck_off')],
     [Markup.button.callback('🔄 የጉዞ መስመር ለመቀየር', 'truck_change_route')]
@@ -102,7 +102,8 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     const session = getSession(ctx.from.id);
     const existing = await TruckLeasor.findOne({ userId: ctx.from.id });
     if (existing) {
-        ctx.reply(`ቀድሞውኑ የተመዘገበ መኪና አለዎት። መስመር፡ ${existing.route}\nምን ማድረግ ትፈልጋለህ?`, truckLeasorInline);
+        // ✨ ማስተካከያ፦ እዚህ ጋር ለባለቤቱ ትክክለኛ መረጃ ብቻ እንዲያሳይ ተደርጓል!
+        ctx.reply(`ቀድሞውኑ የተመዘገበ መኪና አለዎት።\nየመኪናው አይነት፡ ${existing.type}\nታርጋ ቁጥር፡ ${existing.plate}\nየአሁኑ መስመር፡ ${existing.route}\n\nሁኔታዎን ለመቀየር ከታች ካሉት በተኖች ይምረጡ፡`, truckLeasorInline);
     } else {
         session.action = 'REG_TRUCK_1';
         ctx.reply('ምን አይነት መኪና እንደሆነ ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
@@ -153,10 +154,14 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
 
 // --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ (Text Handler) ---
 bot.on('text', async (ctx) => {
+    const text = ctx.message.text;
+
+    // ✨ ማስተካከያ፦ የአድሚን ትዕዛዝ በስህተት እዚህ ውስጥ እንዳያልፍ መከላከያ
+    if (text.startsWith('/')) return;
+
     const userId = ctx.from.id;
     const session = getSession(userId);
     const action = session.action;
-    const text = ctx.message.text;
 
     if (!action) return;
 
@@ -434,10 +439,11 @@ bot.command('admin_panel', async (ctx) => {
             return ctx.reply('👑 አድሚን፡ በዳታቤዝ ውስጥ የተመዘገበ ምንም መኪና የለም።');
         }
 
+        // ✨ ማስተካከያ፦ እያንዳንዱን መኪና በአዝራር መልክ ያመጣል
         const buttons = trucks.map(truck => {
             return [
                 Markup.button.callback(`🚚 ${truck.plate || 'ታርጋ የሌለው'} (${truck.type || 'ያልታወቀ'})`, 'none'),
-                Markup.button.callback('❌ ሰርዝ', `admin_del_${truck._id}`)
+                Markup.button.callback('❌ ከዳታቤዝ ሰርዝ', `admin_del_${truck._id}`)
             ];
         });
 
@@ -458,14 +464,14 @@ bot.action(/^admin_del_(.+)$/, async (ctx) => {
         const deleted = await TruckLeasor.findByIdAndDelete(truckId);
 
         if (deleted) {
-            ctx.answerCbQuery(`ታርጋ ${deleted.plate} ተሰርዟል!`);
+            ctx.answerCbQuery(`ታርጋ ${deleted.plate} ከዳታቤዝ ተሰርዟል!`);
             const remainingTrucks = await TruckLeasor.find({});
             if (remainingTrucks.length === 0) {
-                return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች ጠፍተዋል።');
+                return ctx.editMessageText('👑 አድሚን፡ ሁሉም መኪናዎች ከዳታቤዝ ጠፍተዋል።');
             }
             const nextButtons = remainingTrucks.map(t => [
                 Markup.button.callback(`🚚 ${t.plate} (${t.type})`, 'none'),
-                Markup.button.callback('❌ ሰርዝ', `admin_del_${t._id}`)
+                Markup.button.callback('❌ ከዳታቤዝ ሰርዝ', `admin_del_${t._id}`)
             ]);
             ctx.editMessageText('👑 መኪናው ጠፍቷል። የቀሩት ዝርዝር፡', Markup.inlineKeyboard(nextButtons));
         } else {
