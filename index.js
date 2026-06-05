@@ -140,8 +140,12 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
 
 // --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ (Text Handler) ---
 bot.on('text', async (ctx) => {
-    const action = ctx.session.action;
     const text = ctx.message.text;
+    
+    // 🔥 አዲስ መከላከያ፦ የተላከው ፅሁፍ የአድሚን ትዕዛዝ ወይም ሌላ Command ከሆነ የፅሁፍ ምዝገባውን እንዲያቋርጥ ያደርጋል
+    if (text.startsWith('/')) return;
+
+    const action = ctx.session.action;
     const userId = ctx.from.id;
 
     if (!action) return;
@@ -289,7 +293,7 @@ bot.on('text', async (ctx) => {
         ctx.session.action = null;
     }
 
-    // --- 🔹 ማሽነሪ ክፍል ---
+    // --- 🔹 ማሽነሪ ምዝገባ ፍሰት ---
     else if (action === 'REG_MACHINERY_1') {
         ctx.session.machineryData = { type: text };
         ctx.session.action = 'REG_MACHINERY_2'; 
@@ -300,11 +304,11 @@ bot.on('text', async (ctx) => {
         ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
     } else if (action === 'REG_MACHINERY_3') {
         ctx.session.machineryData.phone = text;
+        ctx.session.machineryData.userId = userId; // አዲስ እርማት፡ የባለቤቱን userId ይይዛል
         ctx.session.action = 'REG_MACHINERY_4'; 
         ctx.reply('4. የማሽነሪው የኪራይ ዋጋ ያስገቡ፡');
     } else if (action === 'REG_MACHINERY_4') {
         ctx.session.machineryData.price = text;
-        ctx.session.machineryData.userId = userId;
         ctx.session.machineryData.status = 'active';
         await MachineryLeasor.findOneAndUpdate({ userId }, ctx.session.machineryData, { upsert: true });
         ctx.session.action = null;
@@ -370,13 +374,16 @@ bot.action('machinery_off', async (ctx) => {
 });
 
 // ========================================================
-// 👑 🔥 የአድሚን መቆጣጠሪያ ፓናል (Admin Panel) ክፍል ብቻ 🔥 👑
+// 👑 🔥 የአድሚን መቆጣጠሪያ ፓናል (Admin Panel) ክፍል 🔥 👑
 // ========================================================
 
 bot.command('admin_panel', async (ctx) => {
     if (ctx.from.id !== 7423347375) {
         return ctx.reply('ይቅርታ፣ ይህንን የአድሚን ትዕዛዝ ለመጠቀም ፈቃድ የለዎትም!');
     }
+    
+    // የአድሚን ፓናል ሲመጣ የቀድሞ የፅሁፍ ምዝገባ Action ካለ እንዲጠፋ ያደርጋል
+    ctx.session.action = null;
     
     const adminMenu = Markup.inlineKeyboard([
         [Markup.button.callback('🧱 ሲሚንቶ አጥፋ', 'adm_manage_cement')],
