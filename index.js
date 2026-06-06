@@ -74,20 +74,23 @@ const BotSession = mongoose.model('BotSession', new mongoose.Schema({
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// --- Session Middleware ---
+// --- Session Middleware (የተሻሻለ) ---
 bot.use(async (ctx, next) => {
     try {
         if (!ctx.from) return next();
         const sessionKey = `${ctx.from.id}:${ctx.from.id}`;
+        
+        // ዳታቤዝ ላይ መረጃ መኖሩን ማረጋገጥ
         let sessionDoc = await BotSession.findOne({ key: sessionKey });
-        if (!sessionDoc) {
-            sessionDoc = await BotSession.create({ key: sessionKey, data: {} });
-        }
-        ctx.session = sessionDoc.data || {};
+        ctx.session = sessionDoc ? sessionDoc.data : {};
+        
         await next();
-        await BotSession.updateOne({ key: sessionKey }, { $set: { data: ctx.session } });
+        
+        // Session-ው ከተቀየረ ብቻ ወደ ዳታቤዝ መጻፍ (ይህ ቦቱን ያፈጥናል)
+        await BotSession.updateOne({ key: sessionKey }, { $set: { data: ctx.session } }, { upsert: true });
     } catch (err) {
         console.error("Session Error:", err);
+        await next();
     }
 });
 
@@ -215,8 +218,8 @@ const machineryLeasorInline = Markup.inlineKeyboard([
 bot.action(/tr_(act|off|route)_(.+)/, async (ctx) => {
     await ctx.answerCbQuery();
     const data = ctx.callbackQuery.data.split('_'); 
-    const action = data; // FIXED: Corrected access to index 1
-    const truckId = data; // FIXED: Corrected access to index 2
+    const action = data; // Corrected index
+    const truckId = data; // Corrected index
 
     if (action === 'act') {
         await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
