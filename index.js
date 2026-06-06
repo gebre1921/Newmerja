@@ -50,7 +50,7 @@ mongoose.connect(MONGO_URI, {
 .then(async () => {
     console.log("MongoDB Connected");
     await TruckLeasor.collection.createIndex({ type: 1, route: 1, status: 1 });
-    await CementSeller.collection.createIndex({ type: 1, status: 1 });
+    await CementSeller.collection.createIndex({ type: 1, location: 1, status: 1 });
     await SteelSeller.collection.createIndex({ type: 1, status: 1 });
     await MachineryLeasor.collection.createIndex({ type: 1, status: 1 });
     console.log("Indexes Ready");
@@ -154,7 +154,7 @@ bot.action('rep_cement', async (ctx) => {
     if (items.length === 0) return ctx.reply('ምንም የተመዘገበ የሲሚንቶ ሻጭ የለም።');
     let msg = 'የሲሚንቶ ሻጮች ሪፖርት፦\n\n';
     items.forEach((item, idx) => {
-        msg += `${idx + 1}. ድርጅት: ${item.companyName}\n   አይነት: ${item.type}\n   ስልክ: ${item.phone}\n   ዋጋ: ${item.price}\n   ሁኔታ: ${item.status === 'active' ? 'አለ' : 'የለም'}\n────────────────\n`;
+        msg += `${idx + 1}. ድርጅት: ${item.companyName}\n   አይነት: ${item.type}\n   ቦታ: ${item.location}\n   ስልክ: ${item.phone}\n   ዋጋ: ${item.price}\n   ሁኔታ: ${item.status === 'active' ? 'አለ' : 'የለም'}\n────────────────\n`;
     });
     ctx.reply(msg);
     ctx.answerCbQuery();
@@ -321,9 +321,13 @@ bot.hears('🧱 ሲሚንቶ ለመሸጥ', async (ctx) => {
     }
 });
 
+// ============================================================
+// ✅ ቁልፍ ማስተካከያ — "🧱 ሲሚንቶ ለመግዛት" ፍሰት (3 ደረጃ)
+// ============================================================
 bot.hears('🧱 ሲሚንቶ ለመግዛት', (ctx) => {
     ctx.session.action = 'BUY_CEMENT_1';
-    ctx.reply('1. ምን አይነት ሲሚንቶ ነው የሚፈልጉት?');
+    ctx.session.buyCement = {};
+    ctx.reply('1. ምን አይነት ሲሚንቶ ነው የሚፈልጉት? (ለምሳሌ፡ ዳንጎቴ)');
 });
 
 bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
@@ -348,9 +352,6 @@ bot.hears('🚚 መኪና ለማከራየት', async (ctx) => {
     }
 });
 
-// ============================================================
-// ✅ ቁልፍ ማስተካከያ — "🚚 መኪና ለመከራየት" ፍሰት እዚህ ይጀምራል
-// ============================================================
 bot.hears('🚚 መኪና ለመከራየት', (ctx) => {
     ctx.session.action = 'RENT_TRUCK_1';
     ctx.session.rentTruck = {};
@@ -370,6 +371,7 @@ bot.hears('🟥 ብረት ለመሸጥ', async (ctx) => {
 
 bot.hears('🟥 ብረት ለመግዛት', (ctx) => {
     ctx.session.action = 'BUY_STEEL_1';
+    ctx.session.buySteel = {};
     ctx.reply('1. ምን አይነት ብረት ይፈልጋሉ?');
 });
 
@@ -386,6 +388,7 @@ bot.hears('🔹 ማሽነሪ ለማከራየት', async (ctx) => {
 
 bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
     ctx.session.action = 'RENT_MACHINERY_1';
+    ctx.session.rentMachinery = {};
     ctx.reply('1. የሚፈልጉት የማሽነሪ አይነት ያስገቡ፡');
 });
 
@@ -398,8 +401,9 @@ bot.on('text', async (ctx, next) => {
     if (!action) return;
 
     try {
+
         // ==========================================
-        // CEMENT REGISTRATION
+        // CEMENT REGISTRATION (ሸጭ)
         // ==========================================
         if (action === 'REG_CEMENT_1') {
             ctx.session.cementData = { type: text };
@@ -430,25 +434,66 @@ bot.on('text', async (ctx, next) => {
             ctx.reply(`የሲሚንቶ ዋጋ ወደ ${text} ብር ተሻሽሏል!`);
             ctx.session.action = null;
 
+        // ============================================================
+        // ✅ ዋናው ማስተካከያ — BUY CEMENT ፍሰት (3 ደረጃ)
+        // ============================================================
+
+        // ደረጃ 1: ገዥው የሚፈልጉትን ሲሚንቶ አይነት ያስገቡ
+        } else if (action === 'BUY_CEMENT_1') {
+            ctx.session.buyCement = { type: text };
+            ctx.session.action = 'BUY_CEMENT_2';
+            ctx.reply('2. ሲሚንቶ ለመግዛት የሚፈልጉበት ቦታ ያስገቡ፡ (ለምሳሌ፡ አዲስ አበባ)');
+
+        // ደረጃ 2: ገዥው ሲሚንቶ የሚፈልጉበትን ቦታ ያስገቡ
+        } else if (action === 'BUY_CEMENT_2') {
+            ctx.session.buyCement.location = text;
+            ctx.session.action = 'BUY_CEMENT_3';
+            ctx.reply('3. የስልክ ቁጥርዎን ያስገቡ፡');
+
+        // ደረጃ 3: ስልክ ቁጥር ካስገቡ በኋላ ሲሚንቶ ፈልጎ ውጤት ያሳይ
         } else if (action === 'BUY_CEMENT_3') {
             ctx.session.buyCement.phone = text;
+
+            // የፍለጋ ሎግ ወደ ዳታቤዝ ያስቀምጥ
             await SearchLog.create({
                 userId,
                 username: ctx.from.username || 'N/A',
                 category: 'ሲሚንቶ ፈላጊ',
-                searchedFor: `አይነት: ${ctx.session.buyCement.type}`,
+                searchedFor: `አይነት: ${ctx.session.buyCement.type} | ቦታ: ${ctx.session.buyCement.location}`,
                 phone: text
             });
+
+            // ከዳታቤዝ ውስጥ ተስማሚ ሲሚንቶ ፈልግ (አይነት + ቦታ + status)
             const available = await CementSeller.findOne({
                 type: createSearchRegex(ctx.session.buyCement.type),
+                location: createSearchRegex(ctx.session.buyCement.location),
                 status: 'active'
             }).lean();
+
             if (available) {
-                ctx.reply(`የጠየቁት የሲሚንቶ አይነት ይገኛል\nየአሁን ዋጋ፡ ${available.price} ብር\nበ ${SUPPORT_PHONE} ደውለው ማዘዝ ይችላሉ`);
+                // ============================================================
+                // ✅ ሲሚንቶ ካለ — ይህ መልዕክት ይላካል
+                // ============================================================
+                ctx.reply(
+                    `የሚፈልጉት የሲሚንቶ አይነት እኛ ጋር ይገኛል!\n` +
+                    `አይነት: ${available.type}\n` +
+                    `ቦታ: ${available.location}\n` +
+                    `ዋጋ: ${available.price} ብር\n\n` +
+                    `በ ${SUPPORT_PHONE} ደውለው ይዘዙ።`
+                );
             } else {
-                ctx.reply('ይቅርታ የጠየቁት የሲሚንቶ አይነት ለዛሬ የለም');
+                // ============================================================
+                // ✅ ሲሚንቶ ከሌለ — ይህ መልዕክት ይላካል
+                // ============================================================
+                ctx.reply(
+                    `ይቅርታ! የፈለጉት የሲሚንቶ አይነት የለም።\n` +
+                    `ሲኖር እናሳውቀዎታለን።\n\n` +
+                    `ለተጨማሪ መረጃ በ ${SUPPORT_PHONE} ይደውሉ።`
+                );
             }
+
             ctx.session.action = null;
+            ctx.session.buyCement = {};
 
         // ==========================================
         // TRUCK REGISTRATION
@@ -486,27 +531,22 @@ bot.on('text', async (ctx, next) => {
             ctx.session.action = null;
             ctx.session.targetTruckId = null;
 
-        // ============================================================
-        // ✅ ዋናው ማስተካከያ — RENT TRUCK ፍሰት (3 ደረጃ)
-        // ============================================================
-
-        // ደረጃ 1: ተጠቃሚው የሚፈልጉትን መኪና አይነት ያስገቡ
+        // ==========================================
+        // RENT TRUCK ፍሰት (3 ደረጃ)
+        // ==========================================
         } else if (action === 'RENT_TRUCK_1') {
             ctx.session.rentTruck = { type: text };
             ctx.session.action = 'RENT_TRUCK_2';
             ctx.reply('2. የጉዞ መስመሩ ከየት ወደ የት ነው? (ለምሳሌ፦ ከአዲስ አበባ ወደ ሀዋሳ)');
 
-        // ደረጃ 2: ተጠቃሚው የጉዞ መስመሩን ያስገቡ
         } else if (action === 'RENT_TRUCK_2') {
             ctx.session.rentTruck.route = text;
             ctx.session.action = 'RENT_TRUCK_3';
             ctx.reply('3. የስልክ ቁጥርዎን ያስገቡ፡');
 
-        // ደረጃ 3: ስልክ ቁጥር ካስገቡ በኋላ መኪና ፈልጎ ውጤት ያሳይ
         } else if (action === 'RENT_TRUCK_3') {
             ctx.session.rentTruck.phone = text;
 
-            // የፍለጋ ሎግ ወደ ዳታቤዝ ያስቀምጥ
             await SearchLog.create({
                 userId,
                 username: ctx.from.username || 'N/A',
@@ -515,7 +555,6 @@ bot.on('text', async (ctx, next) => {
                 phone: text
             });
 
-            // ከዳታቤዝ ውስጥ ተስማሚ መኪና ፈልግ
             const foundTruck = await TruckLeasor.findOne({
                 type: createSearchRegex(ctx.session.rentTruck.type),
                 route: createSearchRegex(ctx.session.rentTruck.route),
@@ -523,21 +562,14 @@ bot.on('text', async (ctx, next) => {
             }).sort({ rentedCount: 1 });
 
             if (foundTruck) {
-                // ============================================================
-                // ✅ መኪናው ካለ — ይህ መልዕክት ይላካል
-                // ============================================================
                 ctx.reply(
                     `የፈለጉት መኪና ዝግጁ ነው!\n` +
                     `አይነት: ${foundTruck.type}\n` +
-                    `ታርጋ ቁጥር: ${foundTruck.plate}\n` +
-                    `\nበ ${SUPPORT_PHONE} ይደውሉልን`
+                    `ታርጋ ቁጥር: ${foundTruck.plate}\n\n` +
+                    `በ ${SUPPORT_PHONE} ይደውሉልን`
                 );
-                // የተከራዩ ቁጥር ይጨምር (ለስምምነት ሚዛን)
                 await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $inc: { rentedCount: 1 } });
             } else {
-                // ============================================================
-                // ✅ መኪናው ከሌለ — ይህ መልዕክት ይላካል
-                // ============================================================
                 ctx.reply(
                     `ይቅርታ! የጠየቁት መኪና ለጊዜው አይገኝም።\n` +
                     `ሲኖር እናሳውቀዎታለን።\n\n` +
@@ -579,8 +611,25 @@ bot.on('text', async (ctx, next) => {
             ctx.reply(`የብረት ዋጋ ወደ ${text} ብር ተሻሽሏል!`);
             ctx.session.action = null;
 
+        } else if (action === 'BUY_STEEL_1') {
+            ctx.session.buySteel = { type: text };
+            ctx.session.action = 'BUY_STEEL_2';
+            ctx.reply('2. ብረት ለመግዛት የሚፈልጉበት ቦታ ያስገቡ፡');
+
+        } else if (action === 'BUY_STEEL_2') {
+            ctx.session.buySteel.location = text;
+            ctx.session.action = 'BUY_STEEL_3';
+            ctx.reply('3. የስልክ ቁጥርዎን ያስገቡ፡');
+
         } else if (action === 'BUY_STEEL_3') {
             ctx.session.buySteel.phone = text;
+            await SearchLog.create({
+                userId,
+                username: ctx.from.username || 'N/A',
+                category: 'ብረት ፈላጊ',
+                searchedFor: `አይነት: ${ctx.session.buySteel.type}`,
+                phone: text
+            });
             const available = await SteelSeller.findOne({
                 type: createSearchRegex(ctx.session.buySteel.type),
                 status: 'active'
@@ -588,9 +637,10 @@ bot.on('text', async (ctx, next) => {
             if (available) {
                 ctx.reply(`የጠየቁት የብረት አይነት ይገኛል\nየአሁን ዋጋ፡ ${available.price} ብር\nበ ${SUPPORT_PHONE} ደውለው ማዘዝ ይችላሉ`);
             } else {
-                ctx.reply('ይቅርታ የጠየቁት የብረት አይነት ለዛሬ የለም');
+                ctx.reply(`ይቅርታ የጠየቁት የብረት አይነት ለዛሬ የለም።\nሲኖር እናሳውቀዎታለን።`);
             }
             ctx.session.action = null;
+            ctx.session.buySteel = {};
 
         // ==========================================
         // MACHINERY REGISTRATION
@@ -617,6 +667,37 @@ bot.on('text', async (ctx, next) => {
             await MachineryLeasor.findOneAndUpdate({ userId }, ctx.session.machineryData, { upsert: true });
             ctx.session.action = null;
             ctx.reply('የማሽነሪ መረጃዎ ተመዝግቧል!', machineryLeasorInline);
+
+        } else if (action === 'RENT_MACHINERY_1') {
+            ctx.session.rentMachinery = { type: text };
+            ctx.session.action = 'RENT_MACHINERY_2';
+            ctx.reply('2. ማሽነሪ የሚፈልጉበት ቦታ ያስገቡ፡');
+
+        } else if (action === 'RENT_MACHINERY_2') {
+            ctx.session.rentMachinery.location = text;
+            ctx.session.action = 'RENT_MACHINERY_3';
+            ctx.reply('3. የስልክ ቁጥርዎን ያስገቡ፡');
+
+        } else if (action === 'RENT_MACHINERY_3') {
+            ctx.session.rentMachinery.phone = text;
+            await SearchLog.create({
+                userId,
+                username: ctx.from.username || 'N/A',
+                category: 'ማሽነሪ ፈላጊ',
+                searchedFor: `አይነት: ${ctx.session.rentMachinery.type}`,
+                phone: text
+            });
+            const available = await MachineryLeasor.findOne({
+                type: createSearchRegex(ctx.session.rentMachinery.type),
+                status: 'active'
+            }).lean();
+            if (available) {
+                ctx.reply(`የጠየቁት ማሽነሪ ይገኛል\nዋጋ፡ ${available.price} ብር\nበ ${SUPPORT_PHONE} ደውለው ማዘዝ ይችላሉ`);
+            } else {
+                ctx.reply(`ይቅርታ የጠየቁት ማሽነሪ ለዛሬ የለም።\nሲኖር እናሳውቀዎታለን።`);
+            }
+            ctx.session.action = null;
+            ctx.session.rentMachinery = {};
         }
 
     } catch (error) {
@@ -625,7 +706,7 @@ bot.on('text', async (ctx, next) => {
     }
 });
 
-// --- Cement/Steel/Machinery Status Actions ---
+// --- Status Actions ---
 bot.action('cement_active', async (ctx) => {
     await CementSeller.findOneAndUpdate({ userId: ctx.from.id }, { status: 'active' });
     ctx.reply('ሲሚንቶ "አለ" ተብሎ ተቀይሯል።');
