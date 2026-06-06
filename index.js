@@ -123,7 +123,6 @@ bot.command('admin_panel', async (ctx) => {
 });
 
 // --- 📊 የአድሚን ሪፖርት ማሳያ ክፍል ---
-// ማስታወሻ: ዳታ ለማንበብ ብቻ ስለሆነ .lean() ተጠቅመናል (ለከፍተኛ ፍጥነት)
 bot.action('rep_cement', async (ctx) => {
     try {
         const items = await CementSeller.find({}).lean();
@@ -459,7 +458,6 @@ bot.on('text', async (ctx, next) => {
             ctx.reply(`የብረት ዋጋዎ ወደ ${text} ብር ተሻሽሏል!`);
             ctx.session.action = null;
         }
-        // --- የተቆረጠው ኮድ የተሞላበት ክፍል (BUY_STEEL_2, 3) ---
         else if (action === 'BUY_STEEL_1') {
             ctx.session.buySteel = { type: text };
             ctx.session.action = 'BUY_STEEL_2';
@@ -495,6 +493,16 @@ bot.on('text', async (ctx, next) => {
 // --- 🛡️ ግሎባል የኤረር መከላከያ (Global Error Handler) ---
 bot.catch((err, ctx) => {
     console.error(`❌ ግሎባል ስህተት (Update Type: ${ctx.updateType}):`, err);
+});
+
+// --- 🌐 Render Keep-Alive Server ---
+// የ Render "Port scan timeout" ስህተትን የሚከላከል የድረ-ገጽ ሰርቨር ኮድ
+const PORT = process.env.PORT || 10000;
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end("Bot is running perfectly on Render!");
+}).listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ የድረ-ገጽ ሰርቨር በፖርት ${PORT} ላይ እየሰራ ነው (Render Keep-Alive)`);
 });
 
 // --- 🚀 ቦቱን ማስጀመር (Launch Bot) ---
