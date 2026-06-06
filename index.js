@@ -60,7 +60,7 @@ mongoose.connect(MONGO_URI, {
 .then(async () => {
     console.log("✅ MongoDB Connected");
 
-    await BotSession.collection.createIndex({ key: 1 });
+    // Index ሲፈጠር ስህተት እንዳይፈጠር BotSession index ተወግዷል
     await TruckLeasor.collection.createIndex({ type: 1, route: 1, status: 1 });
     await CementSeller.collection.createIndex({ type: 1, status: 1 });
     await SteelSeller.collection.createIndex({ type: 1, status: 1 });
