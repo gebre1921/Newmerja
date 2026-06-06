@@ -3,15 +3,15 @@ const http = require('http');
 const mongoose = require('mongoose');
 const express = require('express');
 
-// --- 🌐 የ Express ሰርቨር ማዘጋጃ (ለ Render Port Binding) ---
+// --- 🌐 የ Express ሰርቨር ማዘጋጃ ---
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-    res.send('የግንባታ እቃዎች እና የጭነት መኪናዎች ቦት በጥሩ ሁኔታ እየሰራ ነው!');
+    res.send('ቦቱ በጥሩ ሁኔታ እየሰራ ነው!');
 });
 
-// --- 🛠️ የቶክን ማጽጃ ክፍል ---
+// --- 🛠️ የቶክን ማጽጃ ---
 const rawToken = process.env.BOT_TOKEN;
 const BOT_TOKEN = rawToken ? rawToken.trim().replace(/['"]/g, '') : undefined;
 const MONGO_URI = process.env.MONGO_URI;
@@ -140,7 +140,7 @@ bot.command('admin_panel', async (ctx) => {
     ctx.reply('👑 እንኳን ወደ አድሚን ፓናል በሰላም መጡ። ማየት ወይንም ማጥፋት የሚፈልጉትን ይምረጡ፦', adminMenu);
 });
 
-// --- 📊 የአድሚን ሪፖርት ማሳያ ክፍል ---
+// --- 📊 የአድሚን ሪፖርት ማሳያ ---
 bot.action(/rep_.+/, async (ctx) => {
     await ctx.answerCbQuery();
     try {
@@ -215,10 +215,9 @@ const machineryLeasorInline = Markup.inlineKeyboard([
 // --- 🚚 የመኪና በተኖች Handler ---
 bot.action(/tr_(act|off|route)_(.+)/, async (ctx) => {
     await ctx.answerCbQuery();
-    const data = ctx.callbackQuery.data; 
-    const parts = data.split('_');
-    const action = parts; 
-    const truckId = parts;
+    const data = ctx.callbackQuery.data.split('_');
+    const action = data; 
+    const truckId = data;
 
     if (action === 'act') {
         await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
@@ -324,6 +323,7 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
 bot.on('text', async (ctx, next) => {
     const text = ctx.message.text;
     if (text.startsWith('/')) return next();
+    
     const action = ctx.session.action;
     const userId = ctx.from.id;
     if (!action) return;
@@ -445,7 +445,7 @@ bot.on('text', async (ctx, next) => {
     }
 });
 
-// 🟢 ሰርቨሩን እና ቦቱን በተመሳሳይ ሰዓት ማስነሻ ክፍል
+// 🟢 ሰርቨሩን እና ቦቱን በተመሳሳይ ሰዓት ማስነሻ
 app.listen(port, () => {
     console.log(`🌐 ዌብ ሰርቨሩ በፖርት ${port} ላይ እየሰራ ነው...`);
     bot.launch().then(() => console.log('🤖 የቴሌግራም ቦቱ በተሳካ ሁኔታ ስራ ጀምሯል!')).catch(err => console.error('❌ ቦቱን በማስነሳት ላይ ስህተት ተፈጥሯል:', err));
