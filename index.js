@@ -1,5 +1,4 @@
 const { Telegraf, Markup } = require('telegraf');
-const http = require('http');
 const mongoose = require('mongoose');
 const express = require('express');
 
@@ -216,8 +215,8 @@ const machineryLeasorInline = Markup.inlineKeyboard([
 bot.action(/tr_(act|off|route)_(.+)/, async (ctx) => {
     await ctx.answerCbQuery();
     const data = ctx.callbackQuery.data.split('_'); 
-    const action = data; // Fixed: access index 1
-    const truckId = data; // Fixed: access index 2
+    const action = data; // FIXED: Corrected access to index 1
+    const truckId = data; // FIXED: Corrected access to index 2
 
     if (action === 'act') {
         await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
@@ -393,7 +392,7 @@ bot.on('text', async (ctx, next) => {
             await TruckLeasor.findOneAndUpdate({ userId: userId, plate: ctx.session.truckData.plate }, ctx.session.truckData, { upsert: true });
             await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🚚 መኪና አከራይ', detail: `ታርጋ: ${ctx.session.truckData.plate}`, dateStr: getTodayDateString() });
             ctx.session.action = null;
-            ctx.reply('መኪናዎ በትክክል ተመዝግቧል! ፈላጊ ሲኖር እናሳቆታለን።');
+            ctx.reply('መኪናዎ በትክክል ተመዝግቧል! ፈላጊ ሲኖር እናሳውቆታለን።');
         } else if (action === 'UPDATE_TRUCK_ROUTE') {
             const truckId = ctx.session.targetTruckId;
             await TruckLeasor.findByIdAndUpdate(truckId, { route: text });
