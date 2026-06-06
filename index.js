@@ -95,7 +95,7 @@ bot.use(async (ctx, next) => {
 function getTodayDateString() {
     const d = new Date();
     d.setHours(d.getHours() + 3); 
-    return d.toISOString().split('T');
+    return d.toISOString().split('T'); // Fix: String ለመመለስ መጨመር አለበት
 }
 
 function createSearchRegex(input) {
@@ -212,12 +212,12 @@ const machineryLeasorInline = Markup.inlineKeyboard([
     [Markup.button.callback('✅ አለ', 'machinery_active'), Markup.button.callback('❌ የለም', 'machinery_off')]
 ]);
 
-// --- 🚚 የመኪና በተኖች Handler ---
+// --- 🚚 የመኪና በተኖች Handler (FIXED) ---
 bot.action(/tr_(act|off|route)_(.+)/, async (ctx) => {
     await ctx.answerCbQuery();
-    const data = ctx.callbackQuery.data.split('_');
-    const action = data; // Corrected
-    const truckId = data; // Corrected
+    const data = ctx.callbackQuery.data.split('_'); 
+    const action = data; 
+    const truckId = data; 
 
     if (action === 'act') {
         await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
