@@ -3,6 +3,10 @@ const http = require('http');
 const mongoose = require('mongoose');
 const express = require('express');
 
+// --- ⚙️ ለፍጥነት የተጨመሩ Cache-ዎች ---
+const sessionCache = new Map();
+const searchCache = new Map();
+
 // --- 🌐 የ Express ሰርቨር ማዘጋጃ ---
 const app = express();
 const port = process.env.PORT || 3000;
@@ -22,7 +26,8 @@ if (!BOT_TOKEN || !MONGO_URI) {
 }
 
 // --- 🗄️ ከማንጎ ዲቢ (MongoDB) ጋር ማገናኛ ---
-mongoose.connect(MONGO_URI)
+// [አሻሽለናል] maxPoolSize መጨመሩ ብዙ ተጠቃሚ በአንድ ጊዜ ሲጠቀም ቦቱ እንዳይዘገይ ይረዳል
+mongoose.connect(MONGO_URI, { maxPoolSize: 50 })
     .then(() => console.log("✅ ማንጎ ዲቢ ዳታቤዝ በተሳካ ሁኔታ ተገናኝቷል!"))
     .catch(err => console.error("❌ የዳታቤዝ ግንኙነት ስህተት:", err));
 
@@ -75,27 +80,40 @@ const BotSession = mongoose.model('BotSession', new mongoose.Schema({
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// --- Session Middleware ---
+// --- Session Middleware [አሻሽለናል: Cache በመጠቀም] ---
 bot.use(async (ctx, next) => {
     try {
         if (!ctx.from) return next();
         const sessionKey = `${ctx.from.id}:${ctx.from.id}`;
-        let sessionDoc = await BotSession.findOne({ key: sessionKey });
-        if (!sessionDoc) {
-            sessionDoc = await BotSession.create({ key: sessionKey, data: {} });
+        
+        // በመጀመሪያ Cache ውስጥ ይፈልጋል
+        if (sessionCache.has(sessionKey)) {
+            ctx.session = sessionCache.get(sessionKey);
+        } else {
+            // ከሌለ ከዳታቤዝ ይጎትታል
+            let sessionDoc = await BotSession.findOne({ key: sessionKey });
+            if (!sessionDoc) {
+                sessionDoc = await BotSession.create({ key: sessionKey, data: {} });
+            }
+            ctx.session = sessionDoc.data || {};
+            sessionCache.set(sessionKey, ctx.session);
         }
-        ctx.session = sessionDoc.data || {};
+
         await next();
+        
+        // ለውጥ ካለ Cache እና DB ያዘምናል
+        sessionCache.set(sessionKey, ctx.session);
         await BotSession.updateOne({ key: sessionKey }, { $set: { data: ctx.session } });
     } catch (err) {
         console.error("Session Error:", err);
+        await next();
     }
 });
 
 function getTodayDateString() {
     const d = new Date();
     d.setHours(d.getHours() + 3); 
-    return d.toISOString().split('T')[0];
+    return d.toISOString().split('T');
 }
 
 function createSearchRegex(input) {
@@ -212,13 +230,12 @@ const machineryLeasorInline = Markup.inlineKeyboard([
     [Markup.button.callback('✅ አለ', 'machinery_active'), Markup.button.callback('❌ የለም', 'machinery_off')]
 ]);
 
-// --- 🚚 የመኪና በተኖች Handler (FIXED) ---
+// --- 🚚 የመኪና በተኖች Handler ---
 bot.action(/tr_(act|off|route)_(.+)/, async (ctx) => {
     await ctx.answerCbQuery();
-    // በተኑ ሲጫን የሚመጣው data ['tr', 'action', 'truckId'] ነው
     const data = ctx.callbackQuery.data.split('_'); 
-    const action = data[1]; 
-    const truckId = data[2]; 
+    const action = data; 
+    const truckId = data; 
 
     if (action === 'act') {
         await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
