@@ -77,7 +77,7 @@ bot.use(async (ctx, next) => {
 function getTodayDateString() {
     const d = new Date();
     d.setHours(d.getHours() + 3); 
-    return d.toISOString().split('T'); // ቀኑን ብቻ ለመውሰድ
+    return d.toISOString().split('T');
 }
 
 function createSearchRegex(input) {
@@ -357,7 +357,7 @@ bot.on('text', async (ctx, next) => {
             await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🧱 ሲሚንቶ ፈላጊ', searchedFor: `አይነት: ${ctx.session.buyCement.type}, አድራሻ: ${ctx.session.buyCement.address}`, phone: text });
 
             const searchRegex = createSearchRegex(ctx.session.buyCement.type);
-            const available = await CementSeller.findOne({ type: searchRegex, status: 'active' }).lean(); // Added .lean()
+            const available = await CementSeller.findOne({ type: searchRegex, status: 'active' }).lean(); 
             if (available) {
                 ctx.reply(`የጠየቁት የሲሚንቶ አይነት እኛ ጋር ይገኛል\nየአሁን ዋጋ፡ ${available.price} ብር\nበ 0960336138 ደውለው ማዘዝ ይችላሉ`);
             } else {
@@ -483,10 +483,9 @@ bot.on('text', async (ctx, next) => {
             ctx.session.action = null;
         }
     } catch (error) {
-        // ማንኛውም የዳታቤዝ ወይም የኮድ ስህተት ሲያጋጥም ቦቱን እንዳያስቆመው
         console.error("❌ በሜሴጅ ሎጂክ ላይ ስህተት አጋጥሟል:", error);
         ctx.reply('ይቅርታ፣ ሲስተሙ ላይ ስህተት አጋጥሟል:: እባክዎ እንደገና ይሞክሩ::').catch(e => console.error(e));
-        ctx.session.action = null; // ሴሽኑን ሪሴት ያደርገዋል
+        ctx.session.action = null; 
     }
 });
 
@@ -505,12 +504,12 @@ http.createServer((req, res) => {
     console.log(`✅ የድረ-ገጽ ሰርቨር በፖርት ${PORT} ላይ እየሰራ ነው (Render Keep-Alive)`);
 });
 
-// --- 🚀 ቦቱን ማስጀመር (Launch Bot) ---
-bot.launch()
+// --- 🚀 ቦቱን ማስጀመር (Launch Bot) - እዚህ ጋር ነው የ 409 Conflict ማስተካከያው የተጨመረው ---
+bot.launch({ dropPendingUpdates: true })
   .then(() => console.log('🤖 ቦቱ በተሳካ ሁኔታ ስራ ጀምሯል!'))
   .catch(err => console.error('❌ ቦቱን በማስጀመር ላይ ስህተት:', err));
 
-// --- 🛑 Graceful Stop (የ 409 Conflict ማጥፊያ) ---
+// --- 🛑 Graceful Stop ---
 process.once('SIGINT', async () => {
     console.log('🛑 ቦቱ እየተዘጋ ነው (SIGINT)...');
     await mongoose.connection.close(); 
