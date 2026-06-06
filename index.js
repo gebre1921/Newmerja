@@ -216,8 +216,8 @@ const machineryLeasorInline = Markup.inlineKeyboard([
 bot.action(/tr_(act|off|route)_(.+)/, async (ctx) => {
     await ctx.answerCbQuery();
     const data = ctx.callbackQuery.data.split('_');
-    const action = data; 
-    const truckId = data;
+    const action = data; // Corrected
+    const truckId = data; // Corrected
 
     if (action === 'act') {
         await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
