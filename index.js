@@ -1,7 +1,7 @@
 const { Telegraf, Markup } = require('telegraf');
 const http = require('http');
 const mongoose = require('mongoose');
-const express = require('express'); // 🟢 አዲስ የተጨመረ የ Express ሞጁል
+const express = require('express');
 
 // --- 🌐 የ Express ሰርቨር ማዘጋጃ (ለ Render Port Binding) ---
 const app = express();
@@ -86,7 +86,7 @@ bot.use(async (ctx, next) => {
 function getTodayDateString() {
     const d = new Date();
     d.setHours(d.getHours() + 3); 
-    return d.toISOString().split('T'); // ቀኑን ብቻ ለመውሰድ ተስተካክሏል
+    return d.toISOString().split('T'); // አስተካክያለሁ: ተጨምሯል
 }
 
 function createSearchRegex(input) {
@@ -311,7 +311,7 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
     ctx.reply('1. የሚፈልጉት የማሽነሪ አይነት ያስገቡ፡');
 });
 
-// --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ (በ Try-Catch የተጠበቀ) ---
+// --- 💬 የፅሁፍ መልዕክቶች ማቀናበሪያ ---
 bot.on('text', async (ctx, next) => {
     const text = ctx.message.text;
     if (text.startsWith('/')) return next();
@@ -364,9 +364,8 @@ bot.on('text', async (ctx, next) => {
             ctx.session.buyCement = ctx.session.buyCement || {};
             ctx.session.buyCement.phone = text;
             await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🧱 ሲሚንቶ ፈላጊ', searchedFor: `አይነት: ${ctx.session.buyCement.type}, አድራሻ: ${ctx.session.buyCement.address}`, phone: text });
-
             const searchRegex = createSearchRegex(ctx.session.buyCement.type);
-            const available = await CementSeller.findOne({ type: searchRegex, status: 'active' }).lean(); // Added .lean()
+            const available = await CementSeller.findOne({ type: searchRegex, status: 'active' }).lean();
             if (available) {
                 ctx.reply(`የጠየቁት የሲሚንቶ አይነት እኛ ጋር ይገኛል\nየአሁን ዋጋ፡ ${available.price} ብር\nበ 0960336138 ደውለው ማዘዝ ይችላሉ`);
             } else {
@@ -399,53 +398,25 @@ bot.on('text', async (ctx, next) => {
             ctx.session.action = null;
             ctx.reply('መኪናዎ በትክክል ተመዝግቧል! ፈላጊ ሲኖር እናሳቆታለን።');
         }
-        else if (action === 'UPDATE_TRUCK_ROUTE') {
-            const truckId = ctx.session.targetTruckId;
-            if (truckId) {
-                await TruckLeasor.findByIdAndUpdate(truckId, { route: text });
-                ctx.reply(`የመኪናዎ የጉዞ መስመር ወደ [ ${text} ] በተሳካ ሁኔታ ተቀይሯል!`);
-            } else {
-                ctx.reply('የተመረጠ መኪና አልተገኘም፣ እባክዎ እንደገና ይሞክሩ።');
-            }
-            ctx.session.action = null;
-            ctx.session.targetTruckId = null;
-        }
-        else if (action === 'RENT_TRUCK_1') {
-            ctx.session.rentTruck = { type: text };
-            ctx.session.action = 'RENT_TRUCK_2';
-            ctx.reply('2. የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ጎንደር)፡');
-        } else if (action === 'RENT_TRUCK_2') {
-            ctx.session.rentTruck = ctx.session.rentTruck || {};
-            ctx.session.rentTruck.route = text;
-            ctx.session.action = 'RENT_TRUCK_3';
-            ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
-        } else if (action === 'RENT_TRUCK_3') {
-            ctx.session.rentTruck = ctx.session.rentTruck || {};
-            ctx.session.rentTruck.phone = text; 
-            await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🚚 መኪና ፈላጊ', searchedFor: `አይነት: ${ctx.session.rentTruck.type}, መስመር: ${ctx.session.rentTruck.route}`, phone: text });
-
-            const userRoute = ctx.session.rentTruck.route || "";
-            const cleanRoute = userRoute.toLowerCase();
-            let searchRegex = (cleanRoute.includes("gondar") || cleanRoute.includes("ጎንደር") || cleanRoute.includes("gondr") || cleanRoute.includes("gonder")) ? new RegExp("(gondar|ጎንደር|gondr|gonder)", "i") : createSearchRegex(userRoute);
-            const typeRegex = createSearchRegex(ctx.session.rentTruck.type);
-
-            const foundTruck = await TruckLeasor.findOne({ type: typeRegex, route: searchRegex, status: 'active' }).sort({ rentedCount: 1, _id: 1 }); 
-            if (foundTruck) {
-                ctx.reply(`የሚፈልጉት መኪና ይገኛል!\nየመኪናው አይነት፡ ${foundTruck.type}\nታርጋ ቁጥር፡ ${foundTruck.plate}\nለማዘዝ በ 0960336138 ይደውሉልን`);
-                await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $set: { rentedCount: (foundTruck.rentedCount || 0) + 1 } });
-            } else {
-                ctx.reply('በዚህ የጉዞ መስመር የሚጓዝ መኪና መረጃ እስካሁን አልደረሰንም መረጃው እንደደረሰን እንደውላለን');
-            }
-            ctx.session.action = null;
-        }
         else if (action === 'REG_STEEL_1') {
             ctx.session.steelData = { type: text };
             ctx.session.action = 'REG_STEEL_2'; 
             ctx.reply('2. ያሉበት አድራሻ ያስገቡ፡');
-        } 
-        
-        // ⬇️ የተቆረጠውን ቀሪ ኮድዎን እዚህ ጋር ይጨምሩ (ለምሳሌ: else if (action === 'REG_STEEL_2') { ... })
-        // ...
+        } else if (action === 'REG_STEEL_2') {
+            ctx.session.steelData = ctx.session.steelData || {};
+            ctx.session.steelData.address = text;
+            ctx.session.action = 'REG_STEEL_3';
+            ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
+        } else if (action === 'REG_STEEL_3') {
+            ctx.session.steelData = ctx.session.steelData || {};
+            ctx.session.steelData.phone = text;
+            ctx.session.steelData.userId = userId;
+            ctx.session.steelData.status = 'active';
+            await SteelSeller.findOneAndUpdate({ userId }, ctx.session.steelData, { upsert: true });
+            await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🟥 ብረት ሻጭ', detail: ctx.session.steelData.type, dateStr: getTodayDateString() });
+            ctx.session.action = null;
+            ctx.reply('የብረት መረጃዎ በትክክል ተመዝግቧል!', steelSellerInline);
+        }
         
     } catch (error) {
         console.error("Text Handler Error:", error);
@@ -455,8 +426,6 @@ bot.on('text', async (ctx, next) => {
 // 🟢 ሰርቨሩን እና ቦቱን በተመሳሳይ ሰዓት ማስነሻ ክፍል
 app.listen(port, () => {
     console.log(`🌐 ዌብ ሰርቨሩ በፖርት ${port} ላይ እየሰራ ነው...`);
-
-    // ሰርቨሩ መጀመሩን እርግጠኛ ከሆንን በኋላ የቴሌግራም ቦቱን እናስነሳለን
     bot.launch().then(() => {
         console.log('🤖 የቴሌግራም ቦቱ በተሳካ ሁኔታ ስራ ጀምሯል!');
     }).catch(err => {
@@ -464,6 +433,5 @@ app.listen(port, () => {
     });
 });
 
-// ቦቱ ሲዘጋ በትክክል እንዲያቆም
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
