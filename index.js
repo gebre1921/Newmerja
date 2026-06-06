@@ -27,7 +27,6 @@ mongoose.connect(MONGO_URI)
     .catch(err => console.error("❌ የዳታቤዝ ግንኙነት ስህተት:", err));
 
 // --- 📊 የዳታቤዝ ሰንጠረዦች መዋቅር (Schemas) ---
-// ፍለጋ ለማፋጠን ኢንዴክስ ተጨምሯል
 const cementSchema = new mongoose.Schema({ userId: Number, type: String, location: String, companyName: String, phone: String, price: Number, status: String });
 cementSchema.index({ type: 1, status: 1 });
 const CementSeller = mongoose.model('CementSeller', cementSchema);
@@ -142,82 +141,48 @@ bot.command('admin_panel', async (ctx) => {
 });
 
 // --- 📊 የአድሚን ሪፖርት ማሳያ ክፍል ---
-bot.action('rep_cement', async (ctx) => {
+bot.action(/rep_.+/, async (ctx) => {
     await ctx.answerCbQuery();
     try {
-        const items = await CementSeller.find({}).lean();
-        if (items.length === 0) return ctx.reply('🧱 ምንም የተመዘገበ የሲሚንቶ ሻጭ የለም።');
-        let msg = '📊 የሲሚንቶ ሻጮች ሪፖርት፦\n\n';
-        items.forEach((item, idx) => {
-            msg += `${idx + 1}. ድርጅት: ${item.companyName || 'N/A'}\n   አይነት: ${item.type}\n   ስልክ: ${item.phone}\n   ቦታ: ${item.location}\n   ዋጋ: ${item.price}\n   ሁኔታ: ${item.status === 'active' ? '✅ አለ' : '❌ የለም'}\n────────────────\n`;
-        });
-        ctx.reply(msg);
-    } catch(e) { console.error(e); ctx.reply('ስህተት አጋጥሟል'); }
-});
-
-bot.action('rep_truck', async (ctx) => {
-    await ctx.answerCbQuery();
-    try {
-        const items = await TruckLeasor.find({}).lean();
-        if (items.length === 0) return ctx.reply('🚚 ምንም የተመዘገበ መኪና የለም።');
-        let msg = '📊 የመኪና አከራዮች ሪፖርት፦\n\n';
-        items.forEach((item, idx) => {
-            msg += `${idx + 1}. ታርጋ: ${item.plate}\n   አይነት: ${item.type}\n   ስልክ: ${item.phone}\n   መስመር: ${item.route}\n   ሁኔታ: ${item.status === 'active' ? '🟢 ዝግጁ' : '🔴 ስራ ላይ'}\n────────────────\n`;
-        });
-        ctx.reply(msg);
-    } catch(e) { console.error(e); ctx.reply('ስህተት አጋጥሟል'); }
-});
-
-bot.action('rep_steel', async (ctx) => {
-    await ctx.answerCbQuery();
-    try {
-        const items = await SteelSeller.find({}).lean();
-        if (items.length === 0) return ctx.reply('🟥 ምንም የተመዘገበ የብረት ሻጭ የለም።');
-        let msg = '📊 የብረት ሻጮች ሪፖርት፦\n\n';
-        items.forEach((item, idx) => {
-            msg += `${idx + 1}. አይነት: ${item.type}\n   ስልክ: ${item.phone}\n   አድራሻ: ${item.address}\n   ዋጋ: ${item.price}\n   ሁኔታ: ${item.status === 'active' ? '✅ አለ' : '❌ የለም'}\n────────────────\n`;
-        });
-        ctx.reply(msg);
-    } catch(e) { console.error(e); ctx.reply('ስህተት አጋጥሟል'); }
-});
-
-bot.action('rep_machinery', async (ctx) => {
-    await ctx.answerCbQuery();
-    try {
-        const items = await MachineryLeasor.find({}).lean();
-        if (items.length === 0) return ctx.reply('🔹 ምንም የተመዘገበ ማሽነሪ የለም።');
-        let msg = '📊 የማሽነሪ አከራዮች ሪፖርት፦\n\n';
-        items.forEach((item, idx) => {
-            msg += `${idx + 1}. አይነት: ${item.type}\n   ስልክ: ${item.phone}\n   አድራሻ: ${item.address}\n   ዋጋ: ${item.price}\n   ሁኔታ: ${item.status === 'active' ? '✅ አለ' : '❌ የለም'}\n────────────────\n`;
-        });
-        ctx.reply(msg);
-    } catch(e) { console.error(e); ctx.reply('ስህተት አጋጥሟል'); }
-});
-
-bot.action('rep_searches', async (ctx) => {
-    await ctx.answerCbQuery();
-    try {
-        const logs = await SearchLog.find({}).sort({ createdAt: -1 }).limit(30).lean();
-        if (logs.length === 0) return ctx.reply('🔍 እስካሁን ምንም የፍለጋ ታሪክ አልተመዘገበም።');
-        let msg = '🔍 የፈላጊዎች ፍላጎት ሪፖርት (የመጨረሻዎቹ 30)፦\n\n';
-        logs.forEach((log, idx) => {
-            msg += `${idx + 1}. ዘርፍ: ${log.category}\n   የፈለገው: ${log.searchedFor}\n   የፈላጊው ስልክ: ${log.phone}\n   ቀን: ${new Date(log.createdAt).toLocaleDateString('en-US')}\n────────────────\n`;
-        });
-        ctx.reply(msg);
-    } catch(e) { console.error(e); ctx.reply('ስህተት አጋጥሟል'); }
-});
-
-bot.action('rep_actives', async (ctx) => {
-    await ctx.answerCbQuery();
-    try {
-        const todayStr = getTodayDateString();
-        const logs = await ActiveLog.find({ dateStr: todayStr }).sort({ createdAt: -1 }).lean();
-        if (logs.length === 0) return ctx.reply(`📅 ዛሬ (${todayStr}) ሁኔታቸውን Active ያደረጉ ተጠቃሚዎች የሉም።`);
-        let msg = `📅 የዛሬ (${todayStr}) የActive ተጠቃሚዎች ሪፖርት፦\n\n`;
-        logs.forEach((log, idx) => {
-            msg += `${idx + 1}. ስም: ${log.name}\n   ዘርፍ: ${log.category}\n   ዝርዝር: ${log.detail}\n   ሰዓት: ${new Date(log.createdAt).toLocaleTimeString('en-US')}\n────────────────\n`;
-        });
-        ctx.reply(msg);
+        const action = ctx.callbackQuery.data;
+        if (action === 'rep_cement') {
+            const items = await CementSeller.find({}).lean();
+            if (items.length === 0) return ctx.reply('🧱 ምንም የተመዘገበ የሲሚንቶ ሻጭ የለም።');
+            let msg = '📊 የሲሚንቶ ሻጮች ሪፖርት፦\n\n';
+            items.forEach((item, idx) => { msg += `${idx + 1}. ድርጅት: ${item.companyName || 'N/A'}\n   አይነት: ${item.type}\n   ስልክ: ${item.phone}\n   ቦታ: ${item.location}\n   ዋጋ: ${item.price}\n   ሁኔታ: ${item.status === 'active' ? '✅ አለ' : '❌ የለም'}\n────────────────\n`; });
+            ctx.reply(msg);
+        } else if (action === 'rep_truck') {
+            const items = await TruckLeasor.find({}).lean();
+            if (items.length === 0) return ctx.reply('🚚 ምንም የተመዘገበ መኪና የለም።');
+            let msg = '📊 የመኪና አከራዮች ሪፖርት፦\n\n';
+            items.forEach((item, idx) => { msg += `${idx + 1}. ታርጋ: ${item.plate}\n   አይነት: ${item.type}\n   ስልክ: ${item.phone}\n   መስመር: ${item.route}\n   ሁኔታ: ${item.status === 'active' ? '🟢 ዝግጁ' : '🔴 ስራ ላይ'}\n────────────────\n`; });
+            ctx.reply(msg);
+        } else if (action === 'rep_steel') {
+            const items = await SteelSeller.find({}).lean();
+            if (items.length === 0) return ctx.reply('🟥 ምንም የተመዘገበ የብረት ሻጭ የለም።');
+            let msg = '📊 የብረት ሻጮች ሪፖርት፦\n\n';
+            items.forEach((item, idx) => { msg += `${idx + 1}. አይነት: ${item.type}\n   ስልክ: ${item.phone}\n   አድራሻ: ${item.address}\n   ዋጋ: ${item.price}\n   ሁኔታ: ${item.status === 'active' ? '✅ አለ' : '❌ የለም'}\n────────────────\n`; });
+            ctx.reply(msg);
+        } else if (action === 'rep_machinery') {
+            const items = await MachineryLeasor.find({}).lean();
+            if (items.length === 0) return ctx.reply('🔹 ምንም የተመዘገበ ማሽነሪ የለም።');
+            let msg = '📊 የማሽነሪ አከራዮች ሪፖርት፦\n\n';
+            items.forEach((item, idx) => { msg += `${idx + 1}. አይነት: ${item.type}\n   ስልክ: ${item.phone}\n   አድራሻ: ${item.address}\n   ዋጋ: ${item.price}\n   ሁኔታ: ${item.status === 'active' ? '✅ አለ' : '❌ የለም'}\n────────────────\n`; });
+            ctx.reply(msg);
+        } else if (action === 'rep_searches') {
+            const logs = await SearchLog.find({}).sort({ createdAt: -1 }).limit(30).lean();
+            if (logs.length === 0) return ctx.reply('🔍 እስካሁን ምንም የፍለጋ ታሪክ አልተመዘገበም።');
+            let msg = '🔍 የፈላጊዎች ፍላጎት ሪፖርት (የመጨረሻዎቹ 30)፦\n\n';
+            logs.forEach((log, idx) => { msg += `${idx + 1}. ዘርፍ: ${log.category}\n   የፈለገው: ${log.searchedFor}\n   የፈላጊው ስልክ: ${log.phone}\n   ቀን: ${new Date(log.createdAt).toLocaleDateString('en-US')}\n────────────────\n`; });
+            ctx.reply(msg);
+        } else if (action === 'rep_actives') {
+            const todayStr = getTodayDateString();
+            const logs = await ActiveLog.find({ dateStr: todayStr }).sort({ createdAt: -1 }).lean();
+            if (logs.length === 0) return ctx.reply(`📅 ዛሬ (${todayStr}) ሁኔታቸውን Active ያደረጉ ተጠቃሚዎች የሉም።`);
+            let msg = `📅 የዛሬ (${todayStr}) የActive ተጠቃሚዎች ሪፖርት፦\n\n`;
+            logs.forEach((log, idx) => { msg += `${idx + 1}. ስም: ${log.name}\n   ዘርፍ: ${log.category}\n   ዝርዝር: ${log.detail}\n   ሰዓት: ${new Date(log.createdAt).toLocaleTimeString('en-US')}\n────────────────\n`; });
+            ctx.reply(msg);
+        }
     } catch(e) { console.error(e); ctx.reply('ስህተት አጋጥሟል'); }
 });
 
@@ -232,7 +197,7 @@ bot.action('admin_delete_menu', async (ctx) => {
     ctx.reply('ማስተዳደር (ማጥፋት) የሚፈልጉትን ዘርፍ ይምረጡ፦', delMenu);
 });
 
-// --- 🧱 የውስጥ መስመር በተኖች ---
+// --- 🧱 በተኖች (Inline Buttons) ---
 const cementSellerInline = Markup.inlineKeyboard([
     [Markup.button.callback('✅ አለ', 'cement_active'), Markup.button.callback('❌ የለም', 'cement_off')],
     [Markup.button.callback('💰 ዋጋ ማሻሻያ', 'cement_update_price')]
@@ -246,6 +211,34 @@ const steelSellerInline = Markup.inlineKeyboard([
 const machineryLeasorInline = Markup.inlineKeyboard([
     [Markup.button.callback('✅ አለ', 'machinery_active'), Markup.button.callback('❌ የለም', 'machinery_off')]
 ]);
+
+// --- 🚚 የመኪና በተኖች Handler ---
+bot.action(/tr_(act|off|route)_(.+)/, async (ctx) => {
+    await ctx.answerCbQuery();
+    const data = ctx.callbackQuery.data; 
+    const parts = data.split('_');
+    const action = parts; 
+    const truckId = parts;
+
+    if (action === 'act') {
+        await TruckLeasor.findByIdAndUpdate(truckId, { status: 'active' });
+        ctx.reply('✅ መኪናዎ አሁን "🟢 ዝግጁ" (Active) ሆኗል።');
+    } else if (action === 'off') {
+        await TruckLeasor.findByIdAndUpdate(truckId, { status: 'off' });
+        ctx.reply('🔴 መኪናዎ አሁን "🔴 ስራ ላይ" ተደርጓል።');
+    } else if (action === 'route') {
+        ctx.session.action = 'UPDATE_TRUCK_ROUTE';
+        ctx.session.targetTruckId = truckId;
+        ctx.reply('አዲሱን የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከባህር ዳር አዲስ አበባ)፡');
+    }
+});
+
+bot.action('truck_new_reg', async (ctx) => {
+    await ctx.answerCbQuery();
+    ctx.session.action = 'REG_TRUCK_1';
+    ctx.session.truckData = {};
+    ctx.reply('ለመመዝገብ የመኪናውን አይነት ያስገቡ (ለምሳሌ፡ ሲኖትራክ)፡');
+});
 
 // --- Menu Listeners ---
 bot.hears('🧱 ሲሚንቶ ለመሸጥ', async (ctx) => {
@@ -331,7 +324,6 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', (ctx) => {
 bot.on('text', async (ctx, next) => {
     const text = ctx.message.text;
     if (text.startsWith('/')) return next();
-
     const action = ctx.session.action;
     const userId = ctx.from.id;
     if (!action) return;
@@ -342,17 +334,14 @@ bot.on('text', async (ctx, next) => {
             ctx.session.action = 'REG_CEMENT_2';
             ctx.reply('2. ያለበት ቦታ ያስገቡ፡');
         } else if (action === 'REG_CEMENT_2') {
-            ctx.session.cementData = ctx.session.cementData || {};
             ctx.session.cementData.location = text;
             ctx.session.action = 'REG_CEMENT_3';
             ctx.reply('3. የድርጅቱ ስም ያስገቡ፡');
         } else if (action === 'REG_CEMENT_3') {
-            ctx.session.cementData = ctx.session.cementData || {};
             ctx.session.cementData.companyName = text;
             ctx.session.action = 'REG_CEMENT_4';
             ctx.reply('4. ስልክ ቁጥር ያስገቡ፡');
         } else if (action === 'REG_CEMENT_4') {
-            ctx.session.cementData = ctx.session.cementData || {};
             ctx.session.cementData.phone = text;
             ctx.session.cementData.userId = userId;
             ctx.session.cementData.price = 1300; 
@@ -361,51 +350,42 @@ bot.on('text', async (ctx, next) => {
             await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🧱 ሲሚንቶ ሻጭ', detail: ctx.session.cementData.companyName, dateStr: getTodayDateString() });
             ctx.session.action = null;
             ctx.reply('መረጃዎ በትክክል ተመዝግቧል!', cementSellerInline);
-        }
-        else if (action === 'UPDATE_CEMENT_PRICE') {
+        } else if (action === 'UPDATE_CEMENT_PRICE') {
             await CementSeller.findOneAndUpdate({ userId }, { price: Number(text) });
             ctx.reply(`የሲሚንቶ ዋጋ ወደ ${text} ብር በተሳካ ሁኔታ ተሻሽሏል!`);
             ctx.session.action = null;
-        }
-        else if (action === 'BUY_CEMENT_1') {
+        } else if (action === 'BUY_CEMENT_1') {
             ctx.session.buyCement = { type: text };
             ctx.session.action = 'BUY_CEMENT_2';
             ctx.reply('2. አድራሻ ያስገቡ፡');
         } else if (action === 'BUY_CEMENT_2') {
-            ctx.session.buyCement = ctx.session.buyCement || {};
             ctx.session.buyCement.address = text;
             ctx.session.action = 'BUY_CEMENT_3';
             ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
         } else if (action === 'BUY_CEMENT_3') {
-            ctx.session.buyCement = ctx.session.buyCement || {};
             ctx.session.buyCement.phone = text;
             await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🧱 ሲሚንቶ ፈላጊ', searchedFor: `አይነት: ${ctx.session.buyCement.type}, አድራሻ: ${ctx.session.buyCement.address}`, phone: text });
-
             const searchRegex = createSearchRegex(ctx.session.buyCement.type);
-            const available = await CementSeller.findOne({ type: searchRegex, status: 'active' }).lean(); 
+            const available = await CementSeller.findOne({ type: searchRegex, status: 'active' }).lean();
             if (available) {
                 ctx.reply(`የጠየቁት የሲሚንቶ አይነት እኛ ጋር ይገኛል\nየአሁን ዋጋ፡ ${available.price} ብር\nበ 0960336138 ደውለው ማዘዝ ይችላሉ`);
             } else {
                 ctx.reply('ይቅርታ የጠየቁት የሲሚንቶ አይነት ለዛሬ የለም ሲኖር እናሳውቀዎታለን');
             }
             ctx.session.action = null;
-        }
-        else if (action === 'REG_TRUCK_1') {
+        } else if (action === 'REG_TRUCK_1') {
             ctx.session.truckData = { type: text };
             ctx.session.action = 'REG_TRUCK_2';
             ctx.reply('የመኪናው ታርጋ ያስገቡ፡');
         } else if (action === 'REG_TRUCK_2') {
-            ctx.session.truckData = ctx.session.truckData || {};
             ctx.session.truckData.plate = text;
             ctx.session.action = 'REG_TRUCK_3';
             ctx.reply('የጉዞ መስመር ያስገቡ (ምሳሌ፡ ሀዋሳ አዳማ)፡');
         } else if (action === 'REG_TRUCK_3') {
-            ctx.session.truckData = ctx.session.truckData || {};
             ctx.session.truckData.route = text;
             ctx.session.action = 'REG_TRUCK_4';
             ctx.reply('ስልክ ቁጥር ያስገቡ፡');
         } else if (action === 'REG_TRUCK_4') {
-            ctx.session.truckData = ctx.session.truckData || {};
             ctx.session.truckData.phone = text;
             ctx.session.truckData.userId = userId;
             ctx.session.truckData.status = 'active';
@@ -414,57 +394,44 @@ bot.on('text', async (ctx, next) => {
             await ActiveLog.create({ userId, name: ctx.from.first_name || 'ተጠቃሚ', category: '🚚 መኪና አከራይ', detail: `ታርጋ: ${ctx.session.truckData.plate}`, dateStr: getTodayDateString() });
             ctx.session.action = null;
             ctx.reply('መኪናዎ በትክክል ተመዝግቧል! ፈላጊ ሲኖር እናሳቆታለን።');
-        }
-        else if (action === 'UPDATE_TRUCK_ROUTE') {
+        } else if (action === 'UPDATE_TRUCK_ROUTE') {
             const truckId = ctx.session.targetTruckId;
-            if (truckId) {
-                await TruckLeasor.findByIdAndUpdate(truckId, { route: text });
-                ctx.reply(`የመኪናዎ የጉዞ መስመር ወደ [ ${text} ] በተሳካ ሁኔታ ተቀይሯል!`);
-            } else {
-                ctx.reply('የተመረጠ መኪና አልተገኘም፣ እባክዎ እንደገና ይሞክሩ።');
-            }
+            await TruckLeasor.findByIdAndUpdate(truckId, { route: text });
+            ctx.reply(`የመኪናዎ የጉዞ መስመር ወደ [ ${text} ] በተሳካ ሁኔታ ተቀይሯል!`);
             ctx.session.action = null;
             ctx.session.targetTruckId = null;
-        }
-        else if (action === 'RENT_TRUCK_1') {
+        } else if (action === 'RENT_TRUCK_1') {
             ctx.session.rentTruck = { type: text };
             ctx.session.action = 'RENT_TRUCK_2';
             ctx.reply('2. የጉዞ መስመር ያስገቡ (ምሳሌ፡ ከአዲስ አበባ ጎንደር)፡');
         } else if (action === 'RENT_TRUCK_2') {
-            ctx.session.rentTruck = ctx.session.rentTruck || {};
             ctx.session.rentTruck.route = text;
             ctx.session.action = 'RENT_TRUCK_3';
             ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
         } else if (action === 'RENT_TRUCK_3') {
-            ctx.session.rentTruck = ctx.session.rentTruck || {};
             ctx.session.rentTruck.phone = text; 
             await SearchLog.create({ userId, username: ctx.from.username || 'N/A', category: '🚚 መኪና ፈላጊ', searchedFor: `አይነት: ${ctx.session.rentTruck.type}, መስመር: ${ctx.session.rentTruck.route}`, phone: text });
-
             const userRoute = ctx.session.rentTruck.route || "";
             const cleanRoute = userRoute.toLowerCase();
             let searchRegex = (cleanRoute.includes("gondar") || cleanRoute.includes("ጎንደር") || cleanRoute.includes("gondr") || cleanRoute.includes("gonder")) ? new RegExp("(gondar|ጎንደር|gondr|gonder)", "i") : createSearchRegex(userRoute);
             const typeRegex = createSearchRegex(ctx.session.rentTruck.type);
-
             const foundTruck = await TruckLeasor.findOne({ type: typeRegex, route: searchRegex, status: 'active' }).sort({ rentedCount: 1, _id: 1 }); 
             if (foundTruck) {
-                ctx.reply(`የሚፈልጉት መኪና ይገኛል!\nየመኪናው አይነት፡ ${foundTruck.type}\nታርጋ ቁጥር፡ ${foundTruck.plate}\nለማዘዝ በ 0960336138 ይደውሉልን`);
+                ctx.reply(`የሚፈልጉት መኪና ይገኛል!\nየመኪናው አይነት፡ ${foundTruck.type}\nታርጋ ቁጥር፡ ${foundTruck.plate}\nለማዘዝ በ 0960336138 ደውለው ማዘዝ ይችላሉ`);
                 await TruckLeasor.findByIdAndUpdate(foundTruck._id, { $set: { rentedCount: (foundTruck.rentedCount || 0) + 1 } });
             } else {
-                ctx.reply('በዚህ የጉዞ መስመር የሚጓዝ መኪና መረጃ እስካሁን አልደረሰንም መረጃው እንደደረሰን እንደውላለን');
+                ctx.reply('በዚህ የጉዞ መስመር የሚጓዝ መኪና መረጃ እስካሁን አልደረሰንም መረጃው እንደደረሰን እናሳውቃለን');
             }
             ctx.session.action = null;
-        }
-        else if (action === 'REG_STEEL_1') {
+        } else if (action === 'REG_STEEL_1') {
             ctx.session.steelData = { type: text };
             ctx.session.action = 'REG_STEEL_2'; 
             ctx.reply('2. ያሉበት አድራሻ ያስገቡ፡');
         } else if (action === 'REG_STEEL_2') {
-            ctx.session.steelData = ctx.session.steelData || {};
             ctx.session.steelData.address = text;
             ctx.session.action = 'REG_STEEL_3';
             ctx.reply('3. ስልክ ቁጥር ያስገቡ፡');
         } else if (action === 'REG_STEEL_3') {
-            ctx.session.steelData = ctx.session.steelData || {};
             ctx.session.steelData.phone = text;
             ctx.session.steelData.userId = userId;
             ctx.session.steelData.status = 'active';
@@ -473,7 +440,6 @@ bot.on('text', async (ctx, next) => {
             ctx.session.action = null;
             ctx.reply('የብረት መረጃዎ በትክክል ተመዝግቧል!', steelSellerInline);
         }
-        
     } catch (error) {
         console.error("Text Handler Error:", error);
     }
@@ -482,15 +448,8 @@ bot.on('text', async (ctx, next) => {
 // 🟢 ሰርቨሩን እና ቦቱን በተመሳሳይ ሰዓት ማስነሻ ክፍል
 app.listen(port, () => {
     console.log(`🌐 ዌብ ሰርቨሩ በፖርት ${port} ላይ እየሰራ ነው...`);
-
-    // ሰርቨሩ መጀመሩን እርግጠኛ ከሆንን በኋላ የቴሌግራም ቦቱን እናስነሳለን
-    bot.launch().then(() => {
-        console.log('🤖 የቴሌግራም ቦቱ በተሳካ ሁኔታ ስራ ጀምሯል!');
-    }).catch(err => {
-        console.error('❌ ቦቱን በማስነሳት ላይ ስህተት ተፈጥሯል:', err);
-    });
+    bot.launch().then(() => console.log('🤖 የቴሌግራም ቦቱ በተሳካ ሁኔታ ስራ ጀምሯል!')).catch(err => console.error('❌ ቦቱን በማስነሳት ላይ ስህተት ተፈጥሯል:', err));
 });
 
-// ቦቱ ሲዘጋ በትክክል እንዲያቆም
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
