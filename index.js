@@ -1,7 +1,7 @@
 'use strict';
 
 // ╔══════════════════════════════════════════════════════════════╗
-// ║          Simple Marketplace Bot  v6.1  ✨                   ║
+// ║          Simple Marketplace Bot  v6.2  ✨                   ║
 // ║      ሲሚንቶ  ·  ብረት  ·  ማሽነሪ  ·  ትራክ                        ║
 // ╚══════════════════════════════════════════════════════════════╝
 
@@ -206,6 +206,11 @@ const isAdmin = ctx => ADMIN_IDS.includes(ctx.from?.id);
 const fmt     = n   => Number(n).toLocaleString('en');
 function esc(s) { return String(s || '').replace(/([*_`[\]])/g, '\\$1'); }
 
+// ✅ FIX: step function globally ተገልጿል
+function step(cur, total, label) {
+    return `\`[${cur}/${total}]\` ${label}`;
+}
+
 function ethTimestamp(date) {
     const d = new Date(date);
     const eat = new Date(d.getTime() + 3 * 60 * 60 * 1000);
@@ -283,7 +288,6 @@ const SYNONYM_GROUPS = [
     ['ደሴ', 'desse', 'dessie'],
     ['ሐረር', 'harar', 'harer'],
     ['አሶሳ', 'assosa', 'asosa'],
-    // ── አዲስ የተጨመሩ ቦታዎች ───────────────────────────────────────
     ['መተማ', 'metema', 'metama'],
     ['ሁመራ', 'humera', 'humera town', 'humra'],
     ['ወልዲያ', 'woldia', 'woldiya', 'waldiya'],
@@ -370,7 +374,6 @@ function buildAlternatives(raw) {
 function searchRx(s) {
     if (!s) return new RegExp('', 'i');
     const alts = buildAlternatives(s);
-    // ✅ ጥገና: per-char fuzzy ተወግዷል — contains-search + synonyms ይበቃሉ
     const patterns = alts.map(a => a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     return new RegExp(patterns.join('|'), 'i');
 }
@@ -406,7 +409,6 @@ const TRUCK_TYPES = [
     'ቴምፖ',    'ሌላ'
 ];
 
-// ── ዋና ዋና ቦታዎች (ለምዝገባ) ─────────────────────────────────────
 const LOCATIONS = [
     'አዲስ አበባ', 'ሀዋሳ',     'አዳማ',     'ባህርዳር',
     'ጎንደር',    'መቀሌ',     'ጅማ',      'ድሬዳዋ',
@@ -417,7 +419,6 @@ const LOCATIONS = [
     'ሌላ'
 ];
 
-// ── የጉዞ መስመር ምርጫዎች (ለትራክ) ───────────────────────────────────
 const TRUCK_ROUTES_FROM = [
     'አ.አ',     'ሀዋሳ',    'አዳማ',     'ባህርዳር',
     'ጎንደር',   'መቀሌ',    'ጅማ',      'ድሬዳዋ',
@@ -817,7 +818,6 @@ bot.action(/^trk_off_([a-f\d]{24})$/i, ctx => toggleItem(ctx, TruckLeasor, ctx.m
 bot.action(/^trk_route_([a-f\d]{24})$/i, async ctx => {
     if (!isValidObjectId(ctx.match[1])) return ctx.answerCbQuery('❗');
     ctx.session.targetItemId = ctx.match[1];
-    // ✅ አዲስ: route update ሲያደርጉ trip type ይምረጡ
     await ctx.reply('🗺️ *መስመር ዓይነት ይምረጡ:*', {
         parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
@@ -845,9 +845,11 @@ bot.action(/^UPD_TRIP_INTERCITY_([a-f\d]{24})$/i, async ctx => {
     await ctx.reply('🛣️ አዲሱን የጉዞ መስመር ያስገቡ _(ለምሳሌ: ከ አ.አ ወደ ሀዋሳ)_:', { parse_mode: 'Markdown' });
     ctx.answerCbQuery();
 });
+
 bot.action('trk_add', ctx => {
-    ctx.session.action = 'REG_TRUCK_1'; ctx.session.truckData = {};
-    askChoice(ctx, '🚚 *አዲስ ትራክ ምዝገባ*\n\n`[1/4]` የመኪናውን አይነት ይምረጡ:', TRUCK_TYPES, 'TKTYPE_', 3);
+    ctx.session.action = 'REG_TRUCK_1';
+    ctx.session.truckData = {};  // ✅ FIX: truckData ሁልጊዜ ይጀምራል
+    askChoice(ctx, '🚚 *አዲስ ትራክ ምዝገባ*\n\n`[1/5]` የመኪናውን አይነት ይምረጡ:', TRUCK_TYPES, 'TKTYPE_', 3);
     ctx.answerCbQuery();
 });
 
@@ -908,13 +910,14 @@ bot.action(/^MTYPE_(.+)$/, async ctx => {
 
 bot.action(/^TKTYPE_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
+    ctx.session.truckData = ctx.session.truckData || {};  // ✅ FIX: null-safe
     if (val === 'ሌላ') {
         ctx.session.action = 'REG_TRUCK_1_TEXT';
         await ctx.reply('🚚 የመኪናውን አይነት ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
     } else {
-        ctx.session.truckData = { type: val };
+        ctx.session.truckData.type = val;
         ctx.session.action = 'REG_TRUCK_2';
-        await ctx.reply('`[2/5]` 🚗 ታርጋ ቁጥር ያስገቡ:', { parse_mode: 'Markdown' });
+        await ctx.reply(step(2, 5, '🚗 ታርጋ ቁጥር ያስገቡ:'), { parse_mode: 'Markdown' });
     }
     ctx.answerCbQuery();
 });
@@ -973,13 +976,13 @@ bot.action(/^BMAC_(.+)$/, async ctx => {
 
 bot.action(/^BTRK_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
+    ctx.session.rentTruck = ctx.session.rentTruck || {};  // ✅ FIX: null-safe
     if (val === 'ሌላ') {
         ctx.session.action = 'RENT_TRUCK_1_TEXT';
         await ctx.reply('🚚 ምን አይነት መኪና ይፈልጋሉ? ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
     } else {
-        ctx.session.rentTruck = { type: val };
+        ctx.session.rentTruck.type = val;
         ctx.session.action = 'RENT_TRUCK_TRIP_TYPE';
-        // ✅ አዲስ: የጉዞ አይነት ምርጫ
         await ctx.reply('🚚 *የጉዞ አይነት ይምረጡ:*', {
             parse_mode: 'Markdown',
             ...Markup.inlineKeyboard([
@@ -991,25 +994,27 @@ bot.action(/^BTRK_(.+)$/, async ctx => {
     ctx.answerCbQuery();
 });
 
-// ✅ አዲስ: ፈላጊ — በከተማ ውስጥ
+// ── ፈላጊ — በከተማ ውስጥ ──────────────────────────────────────
 bot.action('RENT_TRIP_LOCAL', async ctx => {
+    ctx.session.rentTruck = ctx.session.rentTruck || {};  // ✅ FIX: null-safe
     ctx.session.rentTruck.tripType = 'local';
     ctx.session.action = 'RENT_TRUCK_CITY';
     await askChoice(ctx, '`[2/3]` 📍 ከተማ ይምረጡ:', LOCATIONS, 'BTRKCITY_', 4);
     ctx.answerCbQuery();
 });
 
-// ✅ አዲስ: ፈላጊ — ከተማ ወደ ከተማ (ነባሩ flow)
+// ── ፈላጊ — ከተማ ወደ ከተማ ────────────────────────────────────
 bot.action('RENT_TRIP_INTERCITY', async ctx => {
+    ctx.session.rentTruck = ctx.session.rentTruck || {};  // ✅ FIX: null-safe
     ctx.session.rentTruck.tripType = 'intercity';
     ctx.session.action = 'RENT_TRUCK_2';
     await askChoice(ctx, '`[2/3]` 🛣️ ከየት? (ጉዞ መነሻ):', TRUCK_ROUTES_FROM, 'BTRKLOC_', 4);
     ctx.answerCbQuery();
 });
 
-// ✅ አዲስ: ፈላጊ — ከተማ ምርጫ handler
 bot.action(/^BTRKCITY_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
+    ctx.session.rentTruck = ctx.session.rentTruck || {};  // ✅ FIX: null-safe
     if (val === 'ሌላ') {
         ctx.session.action = 'RENT_TRUCK_CITY_TEXT';
         await ctx.reply('📍 ከተማ ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
@@ -1023,6 +1028,7 @@ bot.action(/^BTRKCITY_(.+)$/, async ctx => {
 
 bot.action(/^BTRKLOC_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
+    ctx.session.rentTruck = ctx.session.rentTruck || {};  // ✅ FIX: null-safe
     if (ctx.session.action === 'RENT_TRUCK_2') {
         if (val === 'ሌላ') {
             ctx.session.action = 'RENT_TRUCK_2_FROM_TEXT';
@@ -1038,6 +1044,7 @@ bot.action(/^BTRKLOC_(.+)$/, async ctx => {
 
 bot.action(/^BTRKTO_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
+    ctx.session.rentTruck = ctx.session.rentTruck || {};  // ✅ FIX: null-safe
     if (val === 'ሌላ') {
         ctx.session.action = 'RENT_TRUCK_2_TO_TEXT';
         await ctx.reply('🛣️ ወዴት? (መድረሻ ቦታ) ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
@@ -1049,25 +1056,28 @@ bot.action(/^BTRKTO_(.+)$/, async ctx => {
     ctx.answerCbQuery();
 });
 
-// ✅ አዲስ: አከራይ — በከተማ ውስጥ
+// ── አከራይ — በከተማ ውስጥ ─────────────────────────────────────
 bot.action('REG_TRIP_LOCAL', async ctx => {
+    ctx.session.truckData = ctx.session.truckData || {};  // ✅ FIX: null-safe
     ctx.session.truckData.tripType = 'local';
     ctx.session.action = 'REG_TRUCK_CITY';
     await askChoice(ctx, step(4, 5, '📍 ትራኩ ያለበት ከተማ ይምረጡ:'), LOCATIONS, 'TRKLOC_', 4);
     ctx.answerCbQuery();
 });
 
-// ✅ አዲስ: አከራይ — ከተማ ወደ ከተማ
+// ── አከራይ — ከተማ ወደ ከተማ ───────────────────────────────────
 bot.action('REG_TRIP_INTERCITY', async ctx => {
+    ctx.session.truckData = ctx.session.truckData || {};  // ✅ FIX: null-safe
     ctx.session.truckData.tripType = 'intercity';
     ctx.session.action = 'REG_TRUCK_3';
     await ctx.reply(step(4, 5, '🛣️ የጉዞ መስመር ያስገቡ _(ለምሳሌ: ከ አ.አ ወደ ሀዋሳ)_:'), { parse_mode: 'Markdown' });
     ctx.answerCbQuery();
 });
 
-// ✅ አዲስ: አከራይ ከተማ dropdown handler
+// ── አከራይ ከተማ dropdown handler ──────────────────────────────
 bot.action(/^TRKLOC_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
+    ctx.session.truckData = ctx.session.truckData || {};  // ✅ FIX: null-safe
     if (val === 'ሌላ') {
         ctx.session.action = 'REG_TRUCK_CITY_TEXT';
         await ctx.reply('📍 ከተማ ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
@@ -1113,7 +1123,7 @@ bot.hears('🔹 ማሽነሪ ለማከራየት', ctx => openDashboard(
 ));
 bot.hears('🚚 መኪና ለማከራየት', ctx => openDashboard(
     ctx, TruckLeasor, truckCard, truckItemKb, 'REG_TRUCK_1', 'truckData', 'ትራክ ምዝገባ',
-    c => askChoice(c, '🚚 *ትራክ ምዝገባ*\n\n`[1/4]` የመኪናውን አይነት ይምረጡ:', TRUCK_TYPES, 'TKTYPE_', 3)
+    c => askChoice(c, '🚚 *ትራክ ምዝገባ*\n\n`[1/5]` የመኪናውን አይነት ይምረጡ:', TRUCK_TYPES, 'TKTYPE_', 3)
 ));
 
 // ──────────────────────────────────────────────────────────
@@ -1147,7 +1157,6 @@ bot.on('text', async (ctx, next) => {
     if (!action) return;
     const uid = ctx.from.id;
 
-    const step  = (cur, total, label) => `\`[${cur}/${total}]\` ${label}`;
     const supportLine =
         `\n📞 *ለማዘዝ ወይም ለተጨማሪ ድጋፍ:*\n` +
         `👉 \`${SUPPORT_PHONE}\``;
@@ -1226,14 +1235,15 @@ bot.on('text', async (ctx, next) => {
 
         // ══ TRUCK REGISTRATION ════════════════════════════
         if (action === 'REG_TRUCK_1' || action === 'REG_TRUCK_1_TEXT') {
-            ctx.session.truckData = { type: text };
+            ctx.session.truckData = ctx.session.truckData || {};
+            ctx.session.truckData.type = text;
             ctx.session.action = 'REG_TRUCK_2';
-            return ctx.reply(step(2, 4, '🚗 ታርጋ ቁጥር ያስገቡ:'), { parse_mode: 'Markdown' });
+            return ctx.reply(step(2, 5, '🚗 ታርጋ ቁጥር ያስገቡ:'), { parse_mode: 'Markdown' });
         }
         if (action === 'REG_TRUCK_2') {
+            ctx.session.truckData = ctx.session.truckData || {};
             ctx.session.truckData.plate = text.toUpperCase().slice(0, 15);
             ctx.session.action = 'REG_TRUCK_TRIP_TYPE';
-            // ✅ አዲስ: ታርጋ ካስገቡ በኋላ የጉዞ አይነት ይምረጡ
             return ctx.reply(step(3, 5, '🚚 የጉዞ አይነት ይምረጡ:'), {
                 parse_mode: 'Markdown',
                 ...Markup.inlineKeyboard([
@@ -1242,21 +1252,24 @@ bot.on('text', async (ctx, next) => {
                 ])
             });
         }
-        // ✅ አዲስ: አከራይ ከተማ text entry
+        // አከራይ ከተማ text entry
         if (action === 'REG_TRUCK_CITY_TEXT') {
+            ctx.session.truckData = ctx.session.truckData || {};
             ctx.session.truckData.route    = text;
             ctx.session.truckData.tripType = 'local';
             ctx.session.action = 'REG_TRUCK_4';
             return ctx.reply(step(5, 5, '📞 ስልክ ቁጥር ያስገቡ:'), { parse_mode: 'Markdown' });
         }
-        // ✅ አዲስ: አከራይ ከተማ-ወደ-ከተማ route text entry
+        // አከራይ ከተማ-ወደ-ከተማ route text entry
         if (action === 'REG_TRUCK_3') {
+            ctx.session.truckData = ctx.session.truckData || {};
             ctx.session.truckData.route    = text;
-            ctx.session.truckData.tripType = 'intercity';
+            ctx.session.truckData.tripType = ctx.session.truckData.tripType || 'intercity';
             ctx.session.action = 'REG_TRUCK_4';
             return ctx.reply(step(5, 5, '📞 ስልክ ቁጥር ያስገቡ:'), { parse_mode: 'Markdown' });
         }
         if (action === 'REG_TRUCK_4') {
+            ctx.session.truckData = ctx.session.truckData || {};
             ctx.session.truckData.phone = safePhone(text);
             const doc = await TruckLeasor.create({ ...ctx.session.truckData, userId: uid, status: 'active' });
             ctx.session.action = null; ctx.session.truckData = {};
@@ -1275,9 +1288,9 @@ bot.on('text', async (ctx, next) => {
 
         // ══ RENT TRUCK ════════════════════════════════════
         if (action === 'RENT_TRUCK_1' || action === 'RENT_TRUCK_1_TEXT') {
-            ctx.session.rentTruck = { type: text };
+            ctx.session.rentTruck = ctx.session.rentTruck || {};
+            ctx.session.rentTruck.type = text;
             ctx.session.action = 'RENT_TRUCK_TRIP_TYPE';
-            // ✅ አዲስ: text entry ካደረጉ በኋላም trip type ይምረጡ
             return ctx.reply('🚚 *የጉዞ አይነት ይምረጡ:*', {
                 parse_mode: 'Markdown',
                 ...Markup.inlineKeyboard([
@@ -1286,51 +1299,48 @@ bot.on('text', async (ctx, next) => {
                 ])
             });
         }
-        // ✅ አዲስ: ፈላጊ ከተማ text entry
+        // ፈላጊ ከተማ text entry
         if (action === 'RENT_TRUCK_CITY_TEXT') {
+            ctx.session.rentTruck = ctx.session.rentTruck || {};
             ctx.session.rentTruck.route = text;
             ctx.session.action = 'RENT_TRUCK_3';
             return ctx.reply(step(3, 3, '📞 ስልክ ቁጥርዎን ያስገቡ:'), { parse_mode: 'Markdown' });
         }
         if (action === 'RENT_TRUCK_2' || action === 'RENT_TRUCK_2_FROM_TEXT') {
+            ctx.session.rentTruck = ctx.session.rentTruck || {};
             ctx.session.rentTruck.routeFrom = text;
             ctx.session.action = 'RENT_TRUCK_2_TO';
             return askChoice(ctx, '🛣️ ወዴት? (መድረሻ):', TRUCK_ROUTES_TO, 'BTRKTO_', 4);
         }
         if (action === 'RENT_TRUCK_2_TO' || action === 'RENT_TRUCK_2_TO_TEXT') {
+            ctx.session.rentTruck = ctx.session.rentTruck || {};
             ctx.session.rentTruck.route = `ከ ${ctx.session.rentTruck.routeFrom || ''} ወደ ${text}`;
             ctx.session.action = 'RENT_TRUCK_3';
             return ctx.reply(step(3, 3, '📞 ስልክ ቁጥርዎን ያስገቡ:'), { parse_mode: 'Markdown' });
         }
         if (action === 'RENT_TRUCK_3') {
+            ctx.session.rentTruck = ctx.session.rentTruck || {};
             const { type, route, tripType, routeFrom } = ctx.session.rentTruck;
             logSearch(ctx, '🚚 ትራክ ፈላጊ', `${type} | ${tripType === 'local' ? '🏙️ ' : '🛣️ '}${route}`, text);
 
             let found = null;
 
             if (tripType === 'local') {
-                // ── በከተማ ውስጥ ──────────────────────────────────────
-                // 1st: tripType=local + ከተማ ስም
                 found = await TruckLeasor.findOne({
                     tripType: 'local', route: searchRx(route), status: 'active'
                 }).sort({ rentedCount: 1 });
-                // 2nd fallback: tripType ሳይፈልግ ከተማ ስም ብቻ
                 if (!found) {
                     found = await TruckLeasor.findOne({
                         route: searchRx(route), status: 'active'
                     }).sort({ rentedCount: 1 });
                 }
-
             } else {
-                // ── ከተማ ወደ ከተማ ─────────────────────────────────────
-                // routeFrom + routeTo ሁለቱን ለብቻ ሰብሮ ፈልጉ
                 const fromStr = routeFrom || route?.replace(/^ከ (.+) ወደ .+$/i, '$1').trim() || '';
                 const toStr   = route?.replace(/^ከ .+ ወደ (.+)$/i, '$1').trim() || route || '';
 
                 const fromRx = fromStr ? searchRx(fromStr) : null;
                 const toRx   = toStr   ? searchRx(toStr)   : null;
 
-                // 1st: intercity + ሁለቱ ቦታ
                 if (fromRx && toRx) {
                     found = await TruckLeasor.findOne({
                         tripType: 'intercity',
@@ -1338,7 +1348,6 @@ bot.on('text', async (ctx, next) => {
                         status: 'active'
                     }).sort({ rentedCount: 1 });
                 }
-                // 2nd: intercity + አንደኛው ቦታ ብቻ
                 if (!found && (fromRx || toRx)) {
                     found = await TruckLeasor.findOne({
                         tripType: 'intercity',
@@ -1346,14 +1355,12 @@ bot.on('text', async (ctx, next) => {
                         status: 'active'
                     }).sort({ rentedCount: 1 });
                 }
-                // 3rd fallback: tripType ሳይፈልግ ሁለቱ ቦታ (ነባር ዳታ)
                 if (!found && fromRx && toRx) {
                     found = await TruckLeasor.findOne({
                         $and: [{ route: fromRx }, { route: toRx }],
                         status: 'active'
                     }).sort({ rentedCount: 1 });
                 }
-                // 4th fallback: tripType ሳይፈልግ አንደኛው ቦታ (ነባር ዳታ)
                 if (!found && (fromRx || toRx)) {
                     found = await TruckLeasor.findOne({
                         route: fromRx || toRx, status: 'active'
@@ -1527,7 +1534,7 @@ process.on('unhandledRejection', e => console.error('REJECTION:', e));
 // ──────────────────────────────────────────────────────────
 http.createServer((_, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Simple Marketplace Bot v6.1 — OK');
+    res.end('Simple Marketplace Bot v6.2 — OK');
 }).listen(PORT, '0.0.0.0', () => console.log(`🌐 HTTP :${PORT}`));
 
 if (RENDER_URL) {
@@ -1548,7 +1555,7 @@ bot.launch({
     allowedUpdates: ['message', 'callback_query'],
     dropPendingUpdates: true
 })
-.then(() => console.log('🤖 Bot v6.1 launched!'))
+.then(() => console.log('🤖 Bot v6.2 launched!'))
 .catch(err => { console.error('Launch failed:', err); process.exit(1); });
 
 process.once('SIGINT',  () => bot.stop('SIGINT'));
