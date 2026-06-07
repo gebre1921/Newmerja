@@ -703,49 +703,45 @@ bot.action('rep_searches', async ctx => {
         `📊 *የዛሬ ፍለጋ ሪፖርት*`,
         `🕐 ${ethTimestamp(new Date())}`,
         ``,
-        `┌─────────────────────────`,
+        `━━━━━━━━━━━━━━━━━━━━━`,
+        ``,
     ];
     for (const [cat, entries] of Object.entries(groups)) {
         const em = CAT_EMOJI[cat] || '🔍';
         const label = cat.replace(/^[^\s]+ /, '');
-        summaryLines.push(`│ ${em}  ${label}  ·  *${entries.length}* ፍለጋ`);
+        summaryLines.push(`${em}  *${label}*   →   ${entries.length} ፍለጋ`);
+        summaryLines.push('');
     }
-    summaryLines.push(`└─────────────────────────`);
-    summaryLines.push(`🔢 ጠቅላላ: *${logs.length}* ፍለጋ`);
+    summaryLines.push(`━━━━━━━━━━━━━━━━━━━━━`);
+    summaryLines.push(`🔢 *ጠቅላላ: ${logs.length} ፍለጋ*`);
     await ctx.reply(summaryLines.join('\n'), { parse_mode: 'Markdown' });
 
-    // ── Per-category detail (1 message per category, ~20 entries max per chunk) ──
-    const CHUNK = 20;
+    // ── Per-category detail — each entry gets breathing room ──
+    const CHUNK = 10;
     for (const [cat, entries] of Object.entries(groups)) {
         const emoji = CAT_EMOJI[cat] || '🔍';
 
-        // Split into chunks of 20 so Telegram 4096-char limit is not hit
         for (let start = 0; start < entries.length; start += CHUNK) {
             const slice = entries.slice(start, start + CHUNK);
-            const isFirst = start === 0;
             const partLabel = entries.length > CHUNK
                 ? ` (${start + 1}–${Math.min(start + CHUNK, entries.length)})`
                 : '';
 
             const lines = [];
-            if (isFirst) {
-                lines.push(`${emoji} *${cat}*${partLabel}`);
-                lines.push(`📈 ጠቅላላ: *${entries.length}* ፍለጋ`);
-            } else {
-                lines.push(`${emoji} *${cat}*${partLabel}`);
-            }
-            lines.push(`▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔`);
+            lines.push(`${emoji}  *${cat}*${partLabel}`);
+            lines.push(`📈 ጠቅላላ: *${entries.length}* ፍለጋ`);
+            lines.push(`━━━━━━━━━━━━━━━━━━━━━`);
 
             for (let i = 0; i < slice.length; i++) {
                 const e   = slice[i];
                 const ts  = ethTimestamp(e.createdAt);
                 const who = e.username && e.username !== 'N/A' ? `@${esc(e.username)}` : '—';
                 const num = start + i + 1;
-                lines.push(
-                    `*${num}.* ${emoji} ${esc(e.searchedFor)}\n` +
-                    `     📞 \`${esc(e.phone)}\`   👤 ${who}\n` +
-                    `     🕐 ${ts}`
-                );
+                lines.push('');
+                lines.push(`*${num}.*  ${emoji}  ${esc(e.searchedFor)}`);
+                lines.push(`📞  \`${esc(e.phone)}\``);
+                lines.push(`👤  ${who}     🕐  ${ts}`);
+                lines.push(`─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─`);
             }
 
             await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
