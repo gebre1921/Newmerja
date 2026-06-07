@@ -148,10 +148,72 @@ const isAdmin = ctx => ADMIN_IDS.includes(ctx.from?.id);
 const fmt     = n   => Number(n).toLocaleString('en');
 function esc(s) { return String(s || '').replace(/([*_`[])/g, '\\$1'); }
 
+// ──────────────────────────────────────────────────────────
+// SMART SEARCH — bilingual + fuzzy + typo-tolerant
+// ──────────────────────────────────────────────────────────
+const TERM_MAP = {
+    'dangote':'ዳንጎቴ', 'ዳንጎቴ':'dangote',
+    'dire':'ድሬ',       'ድሬ':'dire',
+    'national':'ናሽናል', 'ናሽናል':'national',
+    'mugher':'ሙገር',    'ሙገር':'mugher',
+    'derba':'ደርባ',     'ደርባ':'derba',
+    'cement':'ሲሚንቶ',   'ሲሚንቶ':'cement',
+    'steel':'ብረት',     'ብረት':'steel',
+    'iron':'ብረት',
+    'rod':'ቆርቆሮ',      'ቆርቆሮ':'rod',
+    'bar':'ቆርቆሮ',
+    'excavator':'ኤክስካቫተር', 'ኤክስካቫተር':'excavator',
+    'bulldozer':'ቡልዶዘር',   'ቡልዶዘር':'bulldozer',
+    'grader':'ጂሬደር',       'ጂሬደር':'grader',
+    'machinery':'ማሽነሪ',    'ማሽነሪ':'machinery',
+    'crane':'ክሬን', 'roller':'ሮለር', 'loader':'ሎደር',
+    'sinotruk':'ሲኖትራክ', 'ሲኖትራክ':'sinotruk',
+    'sino':'ሲኖ', 'faw':'ፎው', 'ፎው':'faw',
+    'isuzu':'ኢሱዙ', 'ኢሱዙ':'isuzu',
+    'truck':'ትራክ', 'ትራክ':'truck',
+    'addis':'አዲስ', 'አዲስ':'addis',
+    'hawasa':'ሀዋሳ', 'ሀዋሳ':'hawasa',
+    'adama':'አዳማ', 'አዳማ':'adama',
+    'bahirdar':'ባህርዳር', 'ባህርዳር':'bahir dar',
+    'gondar':'ጎንደር', 'ጎንደር':'gondar',
+    'mekelle':'መቀሌ', 'መቀሌ':'mekelle',
+    'jimma':'ጅማ', 'ጅማ':'jimma',
+};
+
+function editDistance(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++)
+        for (let j = 1; j <= n; j++)
+            dp[i][j] = a[i-1] === b[j-1]
+                ? dp[i-1][j-1]
+                : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    return dp[m][n];
+}
+
+function buildAlternatives(raw) {
+    const s = raw.trim().toLowerCase();
+    const alts = new Set([s]);
+    if (TERM_MAP[s]) alts.add(String(TERM_MAP[s]).toLowerCase());
+    for (const [key, val] of Object.entries(TERM_MAP)) {
+        const maxDist = Math.max(1, Math.floor(key.length / 4));
+        if (editDistance(s, key.toLowerCase()) <= maxDist) {
+            alts.add(key.toLowerCase());
+            alts.add(String(val).toLowerCase());
+        }
+    }
+    return [...alts];
+}
+
 function searchRx(s) {
     if (!s) return new RegExp('', 'i');
-    const c = s.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return /[a-zA-Z]/.test(c) ? new RegExp(c.split('').join('.*'), 'i') : new RegExp(c, 'i');
+    const alts = buildAlternatives(s);
+    const patterns = alts.map(a => {
+        const escaped = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return /[a-zA-Z]/.test(a) ? escaped.split('').join('.*') : escaped;
+    });
+    return new RegExp(patterns.join('|'), 'i');
 }
 function logSearch(ctx, category, searchedFor, phone) {
     SearchLog.create({ userId: ctx.from.id, username: ctx.from.username || 'N/A',
@@ -168,7 +230,7 @@ function statusBadge(status) {
     return status === 'active' ? '🟢 አለ' : '🔴 የለም';
 }
 function truckStatusBadge(status) {
-    return status === 'active' ? '🟢 ዝግጁ' : '⏳ ስራ ላይ';
+    return status === 'active' ? '🟢 ዝግጁ' : '🔴 ስራ ላይ';
 }
 
 // ─── BUYER-FACING cards (no phone, clean & short) ─────────
@@ -251,7 +313,7 @@ function macCard(it, adminView = false) {
 
 function truckCard(it, adminView = false) {
     const badge = adminView
-        ? (it.status === 'active' ? '✅ ዝግጁ' : '⏳ ስራ ላይ')
+        ? (it.status === 'active' ? '✅ ዝግጁ' : '🔴 ስራ ላይ')
         : truckStatusBadge(it.status);
     return (
         `🚚 *${esc(it.type)}*\n` +
@@ -288,7 +350,7 @@ const macItemKb     = id => Markup.inlineKeyboard([
 
 const truckItemKb   = id => Markup.inlineKeyboard([
     [Markup.button.callback('✅ ዝግጁ',      `trk_on_${id}`),
-     Markup.button.callback('⏳ ስራ ላይ',   `trk_off_${id}`)],
+     Markup.button.callback('🔴 ስራ ላይ',   `trk_off_${id}`)],
     [Markup.button.callback('🗺️ መስመር ቀይር', `trk_route_${id}`),
      Markup.button.callback('➕ ሌላ ጨምር',  'trk_add')]
 ]);
