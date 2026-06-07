@@ -151,34 +151,79 @@ function esc(s) { return String(s || '').replace(/([*_`[])/g, '\\$1'); }
 // ──────────────────────────────────────────────────────────
 // SMART SEARCH — bilingual + fuzzy + typo-tolerant
 // ──────────────────────────────────────────────────────────
-const TERM_MAP = {
-    'dangote':'ዳንጎቴ', 'ዳንጎቴ':'dangote',
-    'dire':'ድሬ',       'ድሬ':'dire',
-    'national':'ናሽናል', 'ናሽናል':'national',
-    'mugher':'ሙገር',    'ሙገር':'mugher',
-    'derba':'ደርባ',     'ደርባ':'derba',
-    'cement':'ሲሚንቶ',   'ሲሚንቶ':'cement',
-    'steel':'ብረት',     'ብረት':'steel',
-    'iron':'ብረት',
-    'rod':'ቆርቆሮ',      'ቆርቆሮ':'rod',
-    'bar':'ቆርቆሮ',
-    'excavator':'ኤክስካቫተር', 'ኤክስካቫተር':'excavator',
-    'bulldozer':'ቡልዶዘር',   'ቡልዶዘር':'bulldozer',
-    'grader':'ጂሬደር',       'ጂሬደር':'grader',
-    'machinery':'ማሽነሪ',    'ማሽነሪ':'machinery',
-    'crane':'ክሬን', 'roller':'ሮለር', 'loader':'ሎደር',
-    'sinotruk':'ሲኖትራክ', 'ሲኖትራክ':'sinotruk',
-    'sino':'ሲኖ', 'faw':'ፎው', 'ፎው':'faw',
-    'isuzu':'ኢሱዙ', 'ኢሱዙ':'isuzu',
-    'truck':'ትራክ', 'ትራክ':'truck',
-    'addis':'አዲስ', 'አዲስ':'addis',
-    'hawasa':'ሀዋሳ', 'ሀዋሳ':'hawasa',
-    'adama':'አዳማ', 'አዳማ':'adama',
-    'bahirdar':'ባህርዳር', 'ባህርዳር':'bahir dar',
-    'gondar':'ጎንደር', 'ጎንደር':'gondar',
-    'mekelle':'መቀሌ', 'መቀሌ':'mekelle',
-    'jimma':'ጅማ', 'ጅማ':'jimma',
-};
+// ─── Synonym groups: all words in a group match each other ────
+// Format: [ [synonym1, synonym2, synonym3, ...], ... ]
+const SYNONYM_GROUPS = [
+    // ── ሲሚንቶ brands ──────────────────────────────────────────
+    ['ዳንጎቴ', 'dangote', 'dangoto', 'dangte'],
+    ['ድሬ', 'dire', 'diredawa', 'ድሬዳዋ'],
+    ['ናሽናል', 'national', 'nashenal'],
+    ['ሙገር', 'mugher', 'muger'],
+    ['ደርባ', 'derba'],
+    ['ሲሚንቶ', 'cement', 'cemento', 'siminto'],
+
+    // ── ብረት / Steel ──────────────────────────────────────────
+    ['ብረት', 'steel', 'iron', 'bireet'],
+    ['ቆርቆሮ', 'rod', 'bar', 'rebar', 'korkorо'],
+    // ብረት sizes — all synonyms of each other
+    ['ባለ 8', 'ባለ8', '8mm', '8 mm', 'bale 8', '8'],
+    ['ባለ 10', 'ባለ10', '10mm', '10 mm', 'bale 10', '10'],
+    ['ባለ 12', 'ባለ12', '12mm', '12 mm', 'bale 12', '12'],
+    ['ባለ 14', 'ባለ14', '14mm', '14 mm', 'bale 14'],
+    ['ባለ 16', 'ባለ16', '16mm', '16 mm', 'bale 16'],
+
+    // ── ማሽነሪ ──────────────────────────────────────────────────
+    ['ማሽነሪ', 'machinery', 'machine', 'mashineri'],
+    ['ኤክስካቫተር', 'excavator', 'exkavator', 'excavater', 'digger', 'excavator'],
+    ['ቡልዶዘር', 'bulldozer', 'buldozer', 'bull dozer'],
+    ['ጂሬደር', 'grader', 'motor grader', 'moto grader', 'ሞጦ ጂሬደር'],
+    ['ክሬን', 'crane'],
+    ['ሮለር', 'roller', 'compactor', 'ኮምፓክተር', 'compacter'],
+    ['ሎደር', 'loader', 'front loader', 'wheel loader'],
+    ['ኮንክሪት ሚክሰር', 'concrete mixer', 'mixer', 'ሚክሰር', 'cement mixer'],
+    ['ጀነሬተር', 'generator', 'genset', 'gen'],
+    ['ፓምፕ', 'pump', 'water pump'],
+    ['ስካፎልዲንግ', 'scaffolding', 'scaffold'],
+    ['ፎርክሊፍት', 'forklift', 'fork lift'],
+
+    // ── ትራክ / Truck types ─────────────────────────────────────
+    ['ሲኖትራክ', 'sinotruk', 'sino truck', 'sino'],
+    ['ፎው', 'faw', 'faaw'],
+    ['ኢሱዙ', 'isuzu', 'isuzу'],
+    ['ትራክ', 'truck', 'trak', 'lorry'],
+    // ── ዋና ዋና: ተሳቢ / trailer synonyms ──────────────────────
+    ['ተሳቢ', 'ተጎታች', 'trailer', 'semi trailer', 'semi-trailer',
+     'trailor', 'treler', 'traylor', 'ሴሚ ትሬለር', 'ትሬለር', 'tirelar'],
+    ['ቴምፖ', 'tempo', 'mini truck', 'pickup', 'ፒክአፕ', 'pick up'],
+    ['ታንከር', 'tanker', 'water tanker', 'fuel tanker', 'ነዳጅ ታንከር'],
+    ['ዳምፕ', 'dump truck', 'dumper', 'tipper', 'ዳምፐር', 'dump'],
+    ['ፍላትቤድ', 'flatbed', 'flat bed', 'flat truck'],
+    ['ክሬን ትራክ', 'crane truck', 'boom truck'],
+    ['ፍሪጎ', 'frigo', 'refrigerated truck', 'cold truck', 'ቀዝቃዛ'],
+    ['ሲሎ ትራክ', 'silo truck', 'silo', 'bulk truck', 'ሲሎ'],
+    ['ኮንቴይነር', 'container truck', 'container', 'konteiner'],
+
+    // ── ቦታዎች / Locations ──────────────────────────────────────
+    ['አዲስ አበባ', 'addis ababa', 'addis', 'አ.አ', 'aa', 'a.a'],
+    ['ሀዋሳ', 'hawasa', 'hawassa', 'awasa'],
+    ['አዳማ', 'adama', 'nazret', 'ናዝሬት'],
+    ['ባህርዳር', 'bahir dar', 'bahirdar', 'bahrdar'],
+    ['ጎንደር', 'gondar', 'gonder'],
+    ['መቀሌ', 'mekelle', 'mekele', 'tigray'],
+    ['ጅማ', 'jimma', 'jima'],
+    ['ድሬዳዋ', 'dire dawa', 'diredawa', 'dire'],
+    ['ደሴ', 'desse', 'dessie'],
+    ['ሐረር', 'harar', 'harer'],
+    ['አሶሳ', 'assosa', 'asosa'],
+    ['ሐዋሳ', 'hawasa'],
+];
+
+// Build fast lookup: word → group index
+const SYNONYM_LOOKUP = new Map();
+for (let i = 0; i < SYNONYM_GROUPS.length; i++)
+    for (const w of SYNONYM_GROUPS[i])
+        SYNONYM_LOOKUP.set(w.toLowerCase(), i);
+
 
 function editDistance(a, b) {
     const m = a.length, n = b.length;
@@ -195,14 +240,22 @@ function editDistance(a, b) {
 function buildAlternatives(raw) {
     const s = raw.trim().toLowerCase();
     const alts = new Set([s]);
-    if (TERM_MAP[s]) alts.add(String(TERM_MAP[s]).toLowerCase());
-    for (const [key, val] of Object.entries(TERM_MAP)) {
-        const maxDist = Math.max(1, Math.floor(key.length / 4));
-        if (editDistance(s, key.toLowerCase()) <= maxDist) {
-            alts.add(key.toLowerCase());
-            alts.add(String(val).toLowerCase());
+
+    // 1. Direct synonym group lookup
+    if (SYNONYM_LOOKUP.has(s)) {
+        for (const w of SYNONYM_GROUPS[SYNONYM_LOOKUP.get(s)])
+            alts.add(w.toLowerCase());
+    }
+
+    // 2. Typo-tolerant: check each synonym word via edit distance
+    for (const [word, groupIdx] of SYNONYM_LOOKUP.entries()) {
+        const maxDist = Math.max(1, Math.floor(word.length / 4));
+        if (editDistance(s, word) <= maxDist) {
+            for (const w of SYNONYM_GROUPS[groupIdx])
+                alts.add(w.toLowerCase());
         }
     }
+
     return [...alts];
 }
 
@@ -429,22 +482,44 @@ bot.action('rep_mac', ctx => adminReport(ctx, MachineryLeasor, '🔹 ማሽነ�
 // ─── Search logs ─────────────────────────────────────────
 bot.action('rep_searches', async ctx => {
     await ctx.answerCbQuery();
-    const logs = await SearchLog.find({}).sort({ createdAt: -1 }).limit(60).lean();
+    const logs = await SearchLog.find({}).sort({ createdAt: -1 }).limit(80).lean();
     if (!logs.length) return ctx.reply('📭 ምንም የፍለጋ ታሪክ አልተገኘም።');
+
+    // Category → emoji map
+    const CAT_EMOJI = {
+        '🧱 ሲሚንቶ ፈላጊ':  '🧱',
+        '🟥 ብረት ፈላጊ':   '🟥',
+        '🔹 ማሽነሪ ፈላጊ':  '🔹',
+        '🚚 ትራክ ፈላጊ':   '🚚',
+    };
 
     const groups = {};
     for (const l of logs) (groups[l.category] = groups[l.category] || []).push(l);
 
-    await ctx.reply(`📊 *የፈላጊዎች ሪፖርት* — ጠቅላላ: *${logs.length}*`, { parse_mode: 'Markdown' });
+    // Summary header
+    const lines = [`📊 *የፈላጊዎች ሪፖርት*`, `━━━━━━━━━━━━━━━━━━━━━`];
+    for (const [cat, entries] of Object.entries(groups))
+        lines.push(`${CAT_EMOJI[cat] || '🔍'} ${cat.replace(/^[^ ]+ /, '')} — *${entries.length} ፍለጋ*`);
+    lines.push(`━━━━━━━━━━━━━━━━━━━━━`);
+    lines.push(`🔢 ጠቅላላ: *${logs.length}*`);
+    await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
 
+    // Per-category detailed cards
     for (const [cat, entries] of Object.entries(groups)) {
-        await ctx.reply(`${cat} — *${entries.length} ፍለጋ*`, { parse_mode: 'Markdown' });
+        const emoji = CAT_EMOJI[cat] || '🔍';
+        await ctx.reply(
+            `${emoji}${emoji}${emoji} *${cat}* ${emoji}${emoji}${emoji}\n` +
+            `━━━━━━━━━━━━━━━━━━━━━\n` +
+            `📈 *${entries.length}* ፍለጋ`,
+            { parse_mode: 'Markdown' }
+        );
         for (const e of entries) {
-            const d = new Date(e.createdAt);
-            const ts = `${d.getDate()}/${d.getMonth()+1}  🕐${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            const d   = new Date(e.createdAt);
+            const ts  = `${d.getDate()}/${d.getMonth()+1} 🕐${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            const who = e.username && e.username !== 'N/A' ? `@${e.username}` : '—';
             await ctx.reply(
-                `🔍 *${esc(e.searchedFor)}*\n` +
-                `📞 \`${esc(e.phone)}\`  👤 ${e.username && e.username !== 'N/A' ? '@'+e.username : '—'}  📅 ${ts}`,
+                `${emoji} *${esc(e.searchedFor)}*\n` +
+                `📞 \`${esc(e.phone)}\`  👤 ${who}  📅 ${ts}`,
                 { parse_mode: 'Markdown' }
             );
         }
