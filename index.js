@@ -261,6 +261,8 @@ const SYNONYM_GROUPS = [
     ['ተሳቢ', 'ተጎታች', 'trailer', 'semi trailer', 'semi-trailer',
      'trailor', 'treler', 'traylor', 'ሴሚ ትሬለር', 'ትሬለር', 'tirelar'],
     ['ቴምፖ', 'tempo', 'mini truck', 'pickup', 'ፒክአፕ', 'pick up'],
+    ['FSR', 'fsr', 'isuzu fsr', 'medium truck', 'ኤፍ ኤስ አር'],
+    ['አነስተኛ የጭነት መኪና', 'light truck', 'small truck', 'አነስተኛ ትራክ'],
     ['ታንከር', 'tanker', 'water tanker', 'fuel tanker', 'ነዳጅ ታንከር'],
     ['ዳምፕ', 'dump truck', 'dumper', 'tipper', 'ዳምፐር', 'dump'],
     ['ፍላትቤድ', 'flatbed', 'flat bed', 'flat truck'],
@@ -410,7 +412,8 @@ const TRUCK_TYPES = [
     'ታንከር',       'ቫኩም ታንከር',   'ፍሪጎ',
     'ሎ ቤድ ትራክ',  'ፍላትቤድ',      'ካርጎ',
     'ሲሎ ትራክ',    'ኮንቴይነር',     'ካምፓክተር',
-    'ቴምፖ',        'ከብት መጫኛ',    'ሌላ'
+    'ቴምፖ',        'ከብት መጫኛ',    'FSR',
+    'አነስተኛ የጭነት መኪና', 'ሌላ'
 ];
 
 // ── ሙሉ የቦታ ዝርዝር (ለምዝገባ) ────────────────────────────────────
@@ -431,6 +434,13 @@ const LOCATIONS = [
     'ይርጋ ጨፌ', 'ቦረና',    'ሞያሌ',    'ሐዋሳ',
     // ── ምሥራቅ ──
     'ዓዋሽ',    'ሚሌ',     'ጂጂጋ',    'ሌላ'
+];
+
+// ── ዋና ዋና የንግድ ቦታዎች (ሲሚንቶ ለመግዛት ብቻ) ────────────────────────
+const BUY_CEMENT_LOCATIONS = [
+    'አዲስ አበባ', 'አዳማ',    'ሀዋሳ',    'ባህርዳር',  'ጎንደር',
+    'ድሬዳዋ',    'ጅማ',     'መቀሌ',   'ደሴ',     'ኮሚቦልቻ',
+    'ነቀምት',    'ሻሸመኔ',  'ደብረ ብርሃን','ሐረር',   'ሌላ'
 ];
 
 // ── የጉዞ መስመር ምርጫዎች (ለትራክ) ───────────────────────────────────
@@ -918,7 +928,7 @@ bot.action(/^BCEM_(.+)$/, async ctx => {
     } else {
         ctx.session.buyCement = { type: val };
         ctx.session.action = 'BUY_CEMENT_2';
-        await askChoice(ctx, '`[2/3]` 📍 ሲሚንቶ የሚፈልጉበት ቦታ ይምረጡ:', LOCATIONS, 'BCEMLOC_', 4);
+        await askChoice(ctx, '`[2/3]` 📍 ሲሚንቶ መግዛት የሚፈልጉበት ቦታ የት ነው?', BUY_CEMENT_LOCATIONS, 'BCEMLOC_', 3);
     }
     ctx.answerCbQuery();
 });
@@ -927,7 +937,7 @@ bot.action(/^BCEMLOC_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
     if (val === 'ሌላ') {
         ctx.session.action = 'BUY_CEMENT_2_TEXT';
-        await ctx.reply('📍 ቦታ ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
+        await ctx.reply('📍 ሲሚንቶ መግዛት የሚፈልጉበት ቦታ የት ነው? ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
     } else {
         ctx.session.buyCement.location = val;
         ctx.session.action = 'BUY_CEMENT_3';
@@ -1046,6 +1056,7 @@ bot.hears('🧱 ሲሚንቶ ለመግዛት', ctx => {
     ctx.session.action = 'BUY_CEMENT_1'; ctx.session.buyCement = {};
     askChoice(ctx, '🔍 *ሲሚንቶ ፍለጋ*\n\n`[1/3]` ምን አይነት ሲሚንቶ ይፈልጋሉ?', CEMENT_TYPES, 'BCEM_', 3);
 });
+// NOTE: BUY_CEMENT flow step 2 now asks for free-text location (no dropdown)
 bot.hears('🟥 ብረት ለመግዛት', ctx => {
     ctx.session.action = 'BUY_STEEL_1'; ctx.session.buySteel = {};
     askChoice(ctx, '🔍 *ብረት ፍለጋ*\n\n`[1/3]` ምን አይነት ብረት ይፈልጋሉ?', STEEL_TYPES, 'BSTL_', 3);
@@ -1121,7 +1132,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'BUY_CEMENT_1' || action === 'BUY_CEMENT_1_TEXT') {
             ctx.session.buyCement = { type: text };
             ctx.session.action = 'BUY_CEMENT_2';
-            return askChoice(ctx, step(2, 3, '📍 ሲሚንቶ የሚፈልጉበት ቦታ ይምረጡ:'), LOCATIONS, 'BCEMLOC_', 4);
+            return askChoice(ctx, step(2, 3, '📍 ሲሚንቶ መግዛት የሚፈልጉበት ቦታ የት ነው?'), BUY_CEMENT_LOCATIONS, 'BCEMLOC_', 3);
         }
         if (action === 'BUY_CEMENT_2' || action === 'BUY_CEMENT_2_TEXT') {
             ctx.session.buyCement.location = text;
