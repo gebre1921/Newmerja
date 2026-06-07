@@ -337,8 +337,13 @@ bot.command('admin_panel', async ctx => {
     );
 });
 
+// ─── Admin-only keyboard: 🗑️ delete button only ───────────
+const adminDelKb = (prefix, id) => Markup.inlineKeyboard([
+    [Markup.button.callback('🗑️ ምዝገባ አጥፋ', `adel_do_${prefix}_${id}`)]
+]);
+
 // ─── Admin report ─────────────────────────────────────────
-async function adminReport(ctx, Model, title, cardFn, itemKb) {
+async function adminReport(ctx, Model, title, cardFn, prefix) {
     await ctx.answerCbQuery?.();
     const items = await Model.find({}).sort({ status: -1, createdAt: -1 }).lean();
     if (!items.length)
@@ -351,13 +356,13 @@ async function adminReport(ctx, Model, title, cardFn, itemKb) {
         { parse_mode: 'Markdown' }
     );
     for (const it of items)
-        await ctx.reply(cardFn(it, true), { parse_mode: 'Markdown', ...itemKb(it._id) });
+        await ctx.reply(cardFn(it, true), { parse_mode: 'Markdown', ...adminDelKb(prefix, it._id) });
 }
 
-bot.action('rep_cem', ctx => adminReport(ctx, CementSeller,    '🧱 ሲሚንቶ ሻጮች',  cementCard, cementItemKb));
-bot.action('rep_trk', ctx => adminReport(ctx, TruckLeasor,     '🚚 ትራክ አከራዮች', truckCard,  truckItemKb));
-bot.action('rep_stl', ctx => adminReport(ctx, SteelSeller,     '🟥 ብረት ሻጮች',   steelCard,  steelItemKb));
-bot.action('rep_mac', ctx => adminReport(ctx, MachineryLeasor, '🔹 ማሽነሪ',       macCard,    macItemKb));
+bot.action('rep_cem', ctx => adminReport(ctx, CementSeller,    '🧱 ሲሚንቶ ሻጮች',  cementCard, 'cem'));
+bot.action('rep_trk', ctx => adminReport(ctx, TruckLeasor,     '🚚 ትራክ አከራዮች', truckCard,  'trk'));
+bot.action('rep_stl', ctx => adminReport(ctx, SteelSeller,     '🟥 ብረት ሻጮች',   steelCard,  'stl'));
+bot.action('rep_mac', ctx => adminReport(ctx, MachineryLeasor, '🔹 ማሽነሪ',       macCard,    'mac'));
 
 // ─── Search logs ─────────────────────────────────────────
 bot.action('rep_searches', async ctx => {
