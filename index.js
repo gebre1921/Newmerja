@@ -399,18 +399,16 @@ const CEMENT_TYPES = ['ዳንጎቴ', 'ድሬ', 'ናሽናል', 'ሙገር', '�
 const STEEL_TYPES = ['ባለ 8', 'ባለ 10', 'ባለ 12', 'ባለ 14', 'ባለ 16', 'ቆርቆሮ (ሌላ)'];
 
 const MACHINERY_TYPES = [
-    'ኤክስካቫተር', 'ሚኒ ኤክስካቫተር', 'ቡልዶዘር', 'ጂሬደር', 'ሮለር',
-    'ሎደር', 'ክሬን', 'ሎ ቤድ', 'ኮንክሪት ሚክሰር', 'ፎርክሊፍት',
-    'ጀነሬተር', 'ፓምፕ', 'ቪብሬተር', 'ዌልደር', 'ኤር ኮምፕሬሰር', 'ሌላ'
+    'ኤክስካቫተር', 'ቡልዶዘር',  'ጂሬደር',
+    'ሮለር',      'ሎደር',    'ክሬን',
+    'ሎ ቤድ',    'ጀነሬተር',  'ሌላ'
 ];
 
 const TRUCK_TYPES = [
-    'ሲኖትራክ',     'ፎው',          'ኢሱዙ',
-    'ዳምፕ',        'ተሳቢ',         'ካብ ትራክ',
-    'ታንከር',       'ቫኩም ታንከር',   'ፍሪጎ',
-    'ሎ ቤድ ትራክ',  'ፍላትቤድ',      'ካርጎ',
-    'ሲሎ ትራክ',    'ኮንቴይነር',     'ካምፓክተር',
-    'ቴምፖ',        'ከብት መጫኛ',    'ሌላ'
+    'ዳምፕ',        'ተሳቢ',         'ካብ',
+    'ታንከር',       'ሎ ቤድ',        'ካርጎ',
+    'ኮንቴይነር',     'ፍሬጎ',         'ሲሎ',
+    'ቴምፖ/ፒክአፕ',  'ሚኒባስ',        'ሌላ'
 ];
 
 // ── ሙሉ የቦታ ዝርዝር (ለምዝገባ — ለሻጭ/አከራይ) ─────────────────────────
@@ -447,23 +445,21 @@ const RENT_LOCATIONS = [
     'ኮሚቦልቻ',  'ሻሸመኔ',  'ነቀምት',   'ሌላ'
 ];
 
-// ── የጉዞ መስመር ምርጫዎች (ለትራክ) ───────────────────────────────────
+// ── የጉዞ መስመር ምርጫዎች (ለመኪና) — ዋና ዋና ብቻ ──────────────────────
 const TRUCK_ROUTES_FROM = [
-    'አ.አ',      'ሀዋሳ',    'አዳማ',    'ባህርዳር',   'ጎንደር',
-    'መቀሌ',     'ጅማ',     'ድሬዳዋ',   'ደሴ',      'ሐረር',
-    'መተማ',     'ሁመራ',   'ወልዲያ',   'ሸዋ ሮቢት', 'ሻምቡ',
-    'ቡሬ',       'ኮሚቦልቻ', 'ሞጆ',     'ሻሸመኔ',   'ዝዋይ',
-    'ሞያሌ',     'ጂጂጋ',   'ሽሬ',     'አክሱም',    'ነቀምት',
-    'ቆቦ',       'ሌላ'
+    '🏙️ አዲስ አበባ (ከተማ ውስጥ)',
+    'አ.አ',      'አዳማ',    'ሀዋሳ',     'ባህርዳር',
+    'ጎንደር',    'መቀሌ',    'ጅማ',      'ድሬዳዋ',
+    'ደሴ',      'ሐረር',    'ኮሚቦልቻ',  'ሻሸመኔ',
+    'ነቀምት',   'ጂጂጋ',    'ሌላ'
 ];
 
 const TRUCK_ROUTES_TO = [
-    'ሀዋሳ',    'አዳማ',    'ባህርዳር',   'ጎንደር',    'አ.አ',
-    'መቀሌ',    'ጅማ',     'ድሬዳዋ',   'ደሴ',      'ሐረር',
-    'መተማ',    'ሁመራ',   'ወልዲያ',   'ሸዋ ሮቢት', 'ሻምቡ',
-    'ቡሬ',      'ኮሚቦልቻ', 'ሞጆ',     'ሻሸመኔ',   'ዝዋይ',
-    'ሞያሌ',    'ጂጂጋ',   'ሽሬ',     'አክሱም',    'ነቀምት',
-    'ቆቦ',      'ሌላ'
+    '🏙️ አዲስ አበባ (ከተማ ውስጥ)',
+    'አ.አ',      'አዳማ',    'ሀዋሳ',     'ባህርዳር',
+    'ጎንደር',    'መቀሌ',    'ጅማ',      'ድሬዳዋ',
+    'ደሴ',      'ሐረር',    'ኮሚቦልቻ',  'ሻሸመኔ',
+    'ነቀምት',   'ጂጂጋ',    'ሌላ'
 ];
 
 // ── Inline keyboard builder ───────────────────────────────
@@ -629,7 +625,7 @@ bot.start(ctx => {
     const name = sanitize(ctx.from.first_name || 'ጎብኚ');
     ctx.reply(
         `👋 *ሰላም ${esc(name)}! እንኳን ደህና መጡ!*\n\n` +
-        `🏗️ *Simple Marketplace* — ሲሚንቶ፣ ብረት፣ ማሽነሪ፣ ትራክ\n\n` +
+        `🏗️ *Simple Marketplace* — ሲሚንቶ፣ ብረት፣ ማሽነሪ፣ መኪና\n\n` +
         `━━━━━━━━━━━━━━━━━━━\n` +
         `✅ *ለሻጮች / አከራዮች:*\n` +
         `   ▸ "ለመሸጥ" ወይም "ለማከራየት" የሚለውን ይምረጡ\n` +
@@ -693,7 +689,7 @@ bot.command('admin_panel', async ctx => {
         { parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
             [Markup.button.callback('🧱 ሲሚንቶ',  'rep_cem'),
-             Markup.button.callback('🚚 ትራክ',   'rep_trk')],
+             Markup.button.callback('🚚 መኪና',   'rep_trk')],
             [Markup.button.callback('🟥 ብረት',   'rep_stl'),
              Markup.button.callback('🔹 ማሽነሪ',  'rep_mac')],
             [Markup.button.callback('📊 ፍለጋ ሪፖርት (ዛሬ)', 'rep_searches')],
@@ -725,7 +721,7 @@ async function adminReport(ctx, Model, title, cardFn, prefix) {
 }
 
 bot.action('rep_cem', ctx => adminReport(ctx, CementSeller,    '🧱 ሲሚንቶ ሻጮች',  cementCard, 'cem'));
-bot.action('rep_trk', ctx => adminReport(ctx, TruckLeasor,     '🚚 ትራክ አከራዮች', truckCard,  'trk'));
+bot.action('rep_trk', ctx => adminReport(ctx, TruckLeasor,     '🚚 መኪና አከራዮች', truckCard,  'trk'));
 bot.action('rep_stl', ctx => adminReport(ctx, SteelSeller,     '🟥 ብረት ሻጮች',   steelCard,  'stl'));
 bot.action('rep_mac', ctx => adminReport(ctx, MachineryLeasor, '🔹 ማሽነሪ',       macCard,    'mac'));
 
@@ -749,7 +745,7 @@ bot.action('rep_searches', async ctx => {
         '🧱 ሲሚንቶ ፈላጊ': '🧱',
         '🟥 ብረት ፈላጊ':   '🟥',
         '🔹 ማሽነሪ ፈላጊ':  '🔹',
-        '🚚 ትራክ ፈላጊ':   '🚚',
+        '🚚 መኪና ፈላጊ':   '🚚',
     };
 
     const groups = {};
@@ -789,7 +785,7 @@ bot.action('admin_del', ctx => {
         parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
             [Markup.button.callback('🧱 ሲሚንቶ', 'adel_cem'),
-             Markup.button.callback('🚚 ትራክ',  'adel_trk')],
+             Markup.button.callback('🚚 መኪና',  'adel_trk')],
             [Markup.button.callback('🟥 ብረት',  'adel_stl'),
              Markup.button.callback('🔹 ማሽነሪ', 'adel_mac')]
         ])
@@ -907,7 +903,7 @@ bot.action(/^trk_route_([a-f\d]{24})$/i, ctx => {
 });
 bot.action('trk_add', ctx => {
     ctx.session.action = 'REG_TRUCK_1'; ctx.session.truckData = {};
-    askChoice(ctx, '🚚 *አዲስ ትራክ ምዝገባ*\n\n`[1/4]` የመኪናውን አይነት ይምረጡ:', TRUCK_TYPES, 'TKTYPE_', 3);
+    askChoice(ctx, '🚚 *አዲስ መኪና ምዝገባ*\n\n`[1/4]` 🚛 የመኪናውን አይነት ይምረጡ:', TRUCK_TYPES, 'TKTYPE_', 3);
     ctx.answerCbQuery();
 });
 
@@ -1052,7 +1048,7 @@ bot.action(/^BTRK_(.+)$/, async ctx => {
     } else {
         ctx.session.rentTruck = { type: val };
         ctx.session.action = 'RENT_TRUCK_2';
-        await askChoice(ctx, '`[2/3]` 🛣️ ከየት? (ጉዞ መነሻ):', TRUCK_ROUTES_FROM, 'BTRKLOC_', 4);
+        await askChoice(ctx, '`[2/3]` 🛣️ *ከየት?* (ጉዞ መነሻ ይምረጡ):', TRUCK_ROUTES_FROM, 'BTRKLOC_', 3);
     }
     ctx.answerCbQuery();
 });
@@ -1062,11 +1058,16 @@ bot.action(/^BTRKLOC_(.+)$/, async ctx => {
     if (ctx.session.action === 'RENT_TRUCK_2') {
         if (val === 'ሌላ') {
             ctx.session.action = 'RENT_TRUCK_2_FROM_TEXT';
-            await ctx.reply('🛣️ ከየት? (መነሻ ቦታ) ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
+            await ctx.reply('🛣️ መነሻ ቦታ ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
+        } else if (val.includes('ከተማ ውስጥ')) {
+            // intracity — skip "to" step
+            ctx.session.rentTruck.route = val.replace('🏙️ ', '');
+            ctx.session.action = 'RENT_TRUCK_3';
+            await ctx.reply('`[3/3]` 📞 ስልክ ቁጥርዎን ያስገቡ:', { parse_mode: 'Markdown' });
         } else {
             ctx.session.rentTruck.routeFrom = val;
             ctx.session.action = 'RENT_TRUCK_2_TO';
-            await askChoice(ctx, '🛣️ ወዴት? (መድረሻ):', TRUCK_ROUTES_TO, 'BTRKTO_', 4);
+            await askChoice(ctx, '🛣️ *ወዴት?* (መድረሻ ይምረጡ):', TRUCK_ROUTES_TO, 'BTRKTO_', 3);
         }
     }
     ctx.answerCbQuery();
@@ -1076,9 +1077,13 @@ bot.action(/^BTRKTO_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
     if (val === 'ሌላ') {
         ctx.session.action = 'RENT_TRUCK_2_TO_TEXT';
-        await ctx.reply('🛣️ ወዴት? (መድረሻ ቦታ) ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
+        await ctx.reply('🛣️ መድረሻ ቦታ ጽፈው ያስገቡ:', { parse_mode: 'Markdown' });
+    } else if (val.includes('ከተማ ውስጥ')) {
+        ctx.session.rentTruck.route = val.replace('🏙️ ', '');
+        ctx.session.action = 'RENT_TRUCK_3';
+        await ctx.reply('`[3/3]` 📞 ስልክ ቁጥርዎን ያስገቡ:', { parse_mode: 'Markdown' });
     } else {
-        ctx.session.rentTruck.route = `ከ ${ctx.session.rentTruck.routeFrom || ''} ወደ ${val}`;
+        ctx.session.rentTruck.route = `ከ ${ctx.session.rentTruck.routeFrom || ''} ➜ ${val}`;
         ctx.session.action = 'RENT_TRUCK_3';
         await ctx.reply('`[3/3]` 📞 ስልክ ቁጥርዎን ያስገቡ:', { parse_mode: 'Markdown' });
     }
@@ -1122,8 +1127,8 @@ bot.hears('🔹 ማሽነሪ ለማከራየት', ctx => openDashboard(
     c => askChoice(c, '🔹 *ማሽነሪ ምዝገባ*\n\n`[1/4]` የማሽነሪ አይነት ይምረጡ:', MACHINERY_TYPES, 'MTYPE_', 2)
 ));
 bot.hears('🚚 መኪና ለማከራየት', ctx => openDashboard(
-    ctx, TruckLeasor, truckCard, truckItemKb, 'REG_TRUCK_1', 'truckData', 'ትራክ ምዝገባ',
-    c => askChoice(c, '🚚 *ትራክ ምዝገባ*\n\n`[1/4]` የመኪናውን አይነት ይምረጡ:', TRUCK_TYPES, 'TKTYPE_', 3)
+    ctx, TruckLeasor, truckCard, truckItemKb, 'REG_TRUCK_1', 'truckData', 'መኪና ምዝገባ',
+    c => askChoice(c, '🚚 *መኪና ምዝገባ*\n\n`[1/4]` 🚛 የመኪናውን አይነት ይምረጡ:', TRUCK_TYPES, 'TKTYPE_', 3)
 ));
 
 // ──────────────────────────────────────────────────────────
@@ -1264,7 +1269,7 @@ bot.on('text', async (ctx, next) => {
             ctx.session.truckData.phone = safePhone(text);
             const doc = await TruckLeasor.create({ ...ctx.session.truckData, userId: uid, status: 'active' });
             ctx.session.action = null; ctx.session.truckData = {};
-            await ctx.reply(`🎉 *ምዝገባ ተሳክቷል!*\n\nትራኩ ለፈላጊዎች ይታያል። 👇`, { parse_mode: 'Markdown' });
+            await ctx.reply(`🎉 *ምዝገባ ተሳክቷል!*\n\nመኪናዎ ለፈላጊዎች ይታያል። 👇`, { parse_mode: 'Markdown' });
             return ctx.reply(truckCard(doc.toObject(), false), { parse_mode: 'Markdown', ...truckItemKb(doc._id) });
         }
 
@@ -1281,31 +1286,31 @@ bot.on('text', async (ctx, next) => {
         if (action === 'RENT_TRUCK_1' || action === 'RENT_TRUCK_1_TEXT') {
             ctx.session.rentTruck = { type: text };
             ctx.session.action = 'RENT_TRUCK_2';
-            return askChoice(ctx, step(2, 3, '🛣️ ከየት? (ጉዞ መነሻ):'), TRUCK_ROUTES_FROM, 'BTRKLOC_', 4);
+            return askChoice(ctx, step(2, 3, '🛣️ *ከየት?* (ጉዞ መነሻ ይምረጡ):'), TRUCK_ROUTES_FROM, 'BTRKLOC_', 3);
         }
         if (action === 'RENT_TRUCK_2' || action === 'RENT_TRUCK_2_FROM_TEXT') {
             ctx.session.rentTruck.routeFrom = text;
             ctx.session.action = 'RENT_TRUCK_2_TO';
-            return askChoice(ctx, '🛣️ ወዴት? (መድረሻ):', TRUCK_ROUTES_TO, 'BTRKTO_', 4);
+            return askChoice(ctx, '🛣️ *ወዴት?* (መድረሻ ይምረጡ):', TRUCK_ROUTES_TO, 'BTRKTO_', 3);
         }
         if (action === 'RENT_TRUCK_2_TO' || action === 'RENT_TRUCK_2_TO_TEXT') {
-            ctx.session.rentTruck.route = `ከ ${ctx.session.rentTruck.routeFrom || ''} ወደ ${text}`;
+            ctx.session.rentTruck.route = `ከ ${ctx.session.rentTruck.routeFrom || ''} ➜ ${text}`;
             ctx.session.action = 'RENT_TRUCK_3';
             return ctx.reply(step(3, 3, '📞 ስልክ ቁጥርዎን ያስገቡ:'), { parse_mode: 'Markdown' });
         }
         if (action === 'RENT_TRUCK_3') {
             const { type, route } = ctx.session.rentTruck;
-            logSearch(ctx, '🚚 ትራክ ፈላጊ', `${type} | ${route}`, text);
+            logSearch(ctx, '🚚 መኪና ፈላጊ', `${type} | ${route}`, text);
             const found = await TruckLeasor.findOne({
                 type: searchRx(type), route: searchRx(route), status: 'active'
             }).sort({ rentedCount: 1 });
 
             if (found) {
-                await ctx.reply(`✅ *ትራክ ተገኝቷል!* 👇`, { parse_mode: 'Markdown' });
+                await ctx.reply(`✅ *መኪና ተገኝቷል!* 👇`, { parse_mode: 'Markdown' });
                 await ctx.reply(truckCardBuyer(found.toObject()), { parse_mode: 'Markdown' });
                 TruckLeasor.findByIdAndUpdate(found._id, { $inc: { rentedCount: 1 } }).catch(() => {});
             } else {
-                await ctx.reply(`😔 *"${esc(type)}"* — *${esc(route)}*\n\nለጊዜው ዝግጁ ትራክ አልተገኘም። ሲኖር እናሳውቀዎታለን! 🔔`, { parse_mode: 'Markdown' });
+                await ctx.reply(`😔 *"${esc(type)}"* — *${esc(route)}*\n\nለጊዜው ዝግጁ መኪና አልተገኘም። ሲኖር እናሳውቀዎታለን! 🔔`, { parse_mode: 'Markdown' });
             }
             await ctx.reply(supportLine, { parse_mode: 'Markdown' });
             ctx.session.action = null; ctx.session.rentTruck = {};
