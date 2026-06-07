@@ -258,24 +258,18 @@ const SYNONYM_GROUPS = [
     ['ሲኖትራክ', 'sinotruk', 'sino truck', 'sino'],
     ['ፎው', 'faw', 'faaw'],
     ['ኢሱዙ', 'isuzu'],
+    ['FSR', 'fsr', 'isuzu fsr', 'ኤፍኤስአር'],
     ['ትራክ', 'truck', 'trak', 'lorry'],
     ['ተሳቢ', 'ተጎታች', 'trailer', 'semi trailer', 'semi-trailer',
      'trailor', 'treler', 'traylor', 'ሴሚ ትሬለር', 'ትሬለር', 'tirelar'],
-    ['ቴምፖ', 'tempo', 'mini truck', 'pickup', 'ፒክአፕ', 'pick up'],
-    ['ታንከር', 'tanker', 'water tanker', 'fuel tanker', 'ነዳጅ ታንከር'],
     ['ዳምፕ', 'dump truck', 'dumper', 'tipper', 'ዳምፐር', 'dump'],
+    ['ታንከር', 'tanker', 'water tanker', 'fuel tanker', 'ነዳጅ ታንከር'],
+    ['ካርጎ', 'cargo truck', 'cargo', 'box truck', 'closed truck', 'ዝግ ትራክ'],
     ['ፍላትቤድ', 'flatbed', 'flat bed', 'flat truck'],
-    ['ክሬን ትራክ', 'crane truck', 'boom truck'],
-    ['ፍሪጎ', 'frigo', 'refrigerated truck', 'cold truck', 'ቀዝቃዛ'],
+    ['ሎ ቤድ ትራክ', 'low bed truck', 'lowbed truck', 'low loader', 'lowloader'],
     ['ሲሎ ትራክ', 'silo truck', 'silo', 'bulk truck', 'ሲሎ'],
     ['ኮንቴይነር', 'container truck', 'container', 'konteiner'],
-    ['ሎ ቤድ ትራክ', 'low bed truck', 'lowbed truck', 'low loader', 'lowloader'],
-    ['ካምፓክተር', 'compactor truck', 'garbage truck', 'refuse truck'],
-    ['ካርጎ', 'cargo truck', 'cargo', 'box truck', 'closed truck', 'ዝግ ትራክ'],
-    ['ቫኩም ታንከር', 'vacuum tanker', 'vacuum truck', 'ቆሻሻ ታንከር'],
-    ['ካብ ትራክ', 'cab truck', 'tractor head', 'tractor unit', 'ትራክተር ሄድ'],
-    ['ፒክ አፕ ካርጎ', 'pickup cargo', 'light truck'],
-    ['ከብት መጫኛ', 'livestock truck', 'cattle truck', 'animal truck'],
+    ['ቴምፖ', 'tempo', 'mini truck', 'pickup', 'ፒክአፕ', 'pick up'],
 
     // ── ቦታዎች / Locations ──────────────────────────────────────
     ['አዲስ አበባ', 'addis ababa', 'addis', 'አ.አ', 'aa', 'a.a'],
@@ -336,6 +330,7 @@ const SYNONYM_GROUPS = [
     ['ዓዋሽ', 'awash', 'awash arba'],
     ['ሚሌ', 'mile', 'mille'],
     ['ሰሜን ወሎ', 'north welo', 'n. welo'],
+    ['ጭልጋ', 'chilga', 'tsilga', 'chilaga'],
 ];
 
 const SYNONYM_LOOKUP = new Map();
@@ -375,10 +370,8 @@ function buildAlternatives(raw) {
 function searchRx(s) {
     if (!s) return new RegExp('', 'i');
     const alts = buildAlternatives(s);
-    const patterns = alts.map(a => {
-        const escaped = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return /[a-zA-Z]/.test(a) ? escaped.split('').join('.*') : escaped;
-    });
+    // ✅ ጥገና: per-char fuzzy ተወግዷል — contains-search + synonyms ይበቃሉ
+    const patterns = alts.map(a => a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     return new RegExp(patterns.join('|'), 'i');
 }
 
@@ -406,51 +399,41 @@ const MACHINERY_TYPES = [
 ];
 
 const TRUCK_TYPES = [
-    'ሲኖትራክ',     'ፎው',          'ኢሱዙ',
-    'ዳምፕ',        'ተሳቢ',         'ካብ ትራክ',
-    'ታንከር',       'ቫኩም ታንከር',   'ፍሪጎ',
-    'ሎ ቤድ ትራክ',  'ፍላትቤድ',      'ካርጎ',
-    'ሲሎ ትራክ',    'ኮንቴይነር',     'ካምፓክተር',
-    'ቴምፖ',        'ከብት መጫኛ',    'ሌላ'
+    'ሲኖትራክ', 'ፎው',      'ኢሱዙ',
+    'FSR',     'ዳምፕ',    'ተሳቢ',
+    'ታንከር',   'ካርጎ',    'ፍላትቤድ',
+    'ሲሎ ትራክ','ኮንቴይነር', 'ሎ ቤድ ትራክ',
+    'ቴምፖ',    'ሌላ'
 ];
 
-// ── ሙሉ የቦታ ዝርዝር (ለምዝገባ) ────────────────────────────────────
+// ── ዋና ዋና ቦታዎች (ለምዝገባ) ─────────────────────────────────────
 const LOCATIONS = [
-    // ── ዋና ከተሞች ──
-    'አዲስ አበባ', 'ሀዋሳ',    'አዳማ',    'ባህርዳር',  'ጎንደር',
-    'መቀሌ',     'ጅማ',     'ድሬዳዋ',   'ደሴ',     'ሐረር',
-    // ── ሰሜን ምዕራብ / ሰሜን ──
-    'መተማ',     'ሁመራ',   'ሽሬ',     'አክሱም',   'አዲ ግራት',
-    'ወልቃይት',   'ሰቆጣ',   'ላሊበላ',   'ደብረ ብርሃን','ደብረ ማርቆስ',
-    'ደብረ ታቦር', 'ወልዲያ',  'ሸዋ ሮቢት', 'ቆቦ',     'አሸንጌ',
-    'ኮሚቦልቻ',   'ሰሜን ሸዋ',
-    // ── ምዕራብ / ደቡብ ምዕራብ ──
-    'ሻምቡ',     'ቡሬ',     'አምቦ',    'ነቀምት',   'ጊምቢ',
-    'ደምቢ ዶሎ',  'ጋምቤላ',  'ቤንሻንጉል', 'አሶሳ',
-    // ── ደቡብ ──
-    'ሻሸመኔ',   'ዝዋይ',    'ሆሳዕና',   'ቡታጅራ',  'ሞጆ',
-    'ይርጋ ጨፌ', 'ቦረና',    'ሞያሌ',    'ሐዋሳ',
-    // ── ምሥራቅ ──
-    'ዓዋሽ',    'ሚሌ',     'ጂጂጋ',    'ሌላ'
+    'አዲስ አበባ', 'ሀዋሳ',     'አዳማ',     'ባህርዳር',
+    'ጎንደር',    'መቀሌ',     'ጅማ',      'ድሬዳዋ',
+    'ደሴ',      'ሐረር',     'ኮሚቦልቻ',   'ወልዲያ',
+    'ሻሸመኔ',   'ነቀምት',    'ጂጂጋ',     'ሞያሌ',
+    'ሞጆ',      'ደብረ ብርሃን','ደብረ ማርቆስ','ጋምቤላ',
+    'አሶሳ',     'ሁመራ',    'መተማ',     'ጭልጋ',
+    'ሌላ'
 ];
 
 // ── የጉዞ መስመር ምርጫዎች (ለትራክ) ───────────────────────────────────
 const TRUCK_ROUTES_FROM = [
-    'አ.አ',      'ሀዋሳ',    'አዳማ',    'ባህርዳር',   'ጎንደር',
-    'መቀሌ',     'ጅማ',     'ድሬዳዋ',   'ደሴ',      'ሐረር',
-    'መተማ',     'ሁመራ',   'ወልዲያ',   'ሸዋ ሮቢት', 'ሻምቡ',
-    'ቡሬ',       'ኮሚቦልቻ', 'ሞጆ',     'ሻሸመኔ',   'ዝዋይ',
-    'ሞያሌ',     'ጂጂጋ',   'ሽሬ',     'አክሱም',    'ነቀምት',
-    'ቆቦ',       'ሌላ'
+    'አ.አ',     'ሀዋሳ',    'አዳማ',     'ባህርዳር',
+    'ጎንደር',   'መቀሌ',    'ጅማ',      'ድሬዳዋ',
+    'ደሴ',     'ሐረር',    'ኮሚቦልቻ',   'ወልዲያ',
+    'ሻሸመኔ',  'ነቀምት',   'ጂጂጋ',     'ሞያሌ',
+    'ሞጆ',     'ሁመራ',   'መተማ',     'ጭልጋ',
+    'ሌላ'
 ];
 
 const TRUCK_ROUTES_TO = [
-    'ሀዋሳ',    'አዳማ',    'ባህርዳር',   'ጎንደር',    'አ.አ',
-    'መቀሌ',    'ጅማ',     'ድሬዳዋ',   'ደሴ',      'ሐረር',
-    'መተማ',    'ሁመራ',   'ወልዲያ',   'ሸዋ ሮቢት', 'ሻምቡ',
-    'ቡሬ',      'ኮሚቦልቻ', 'ሞጆ',     'ሻሸመኔ',   'ዝዋይ',
-    'ሞያሌ',    'ጂጂጋ',   'ሽሬ',     'አክሱም',    'ነቀምት',
-    'ቆቦ',      'ሌላ'
+    'አ.አ',     'ሀዋሳ',    'አዳማ',     'ባህርዳር',
+    'ጎንደር',   'መቀሌ',    'ጅማ',      'ድሬዳዋ',
+    'ደሴ',     'ሐረር',    'ኮሚቦልቻ',   'ወልዲያ',
+    'ሻሸመኔ',  'ነቀምት',   'ጂጂጋ',     'ሞያሌ',
+    'ሞጆ',     'ሁመራ',   'መተማ',     'ጭልጋ',
+    'ሌላ'
 ];
 
 // ── Inline keyboard builder ───────────────────────────────
@@ -1324,35 +1307,56 @@ bot.on('text', async (ctx, next) => {
             logSearch(ctx, '🚚 ትራክ ፈላጊ', `${type} | ${tripType === 'local' ? '🏙️ ' : '🛣️ '}${route}`, text);
 
             let found = null;
+
             if (tripType === 'local') {
-                // ✅ በከተማ ውስጥ: tripType=local እና ከተማ ስም ፈልጉ
+                // ── በከተማ ውስጥ ──────────────────────────────────────
+                // 1st: tripType=local + ከተማ ስም
                 found = await TruckLeasor.findOne({
-                    tripType: 'local',
-                    route: searchRx(route),
-                    status: 'active'
+                    tripType: 'local', route: searchRx(route), status: 'active'
                 }).sort({ rentedCount: 1 });
-            } else {
-                // ✅ ከተማ ወደ ከተማ: ሁለቱ ቦታዎች route ውስጥ ያሉ ፈልጉ
-                const fromRx = routeFrom ? searchRx(routeFrom) : null;
-                const toMatch = route?.replace(/^ከ .+ ወደ /i, '').trim();
-                const toRx   = toMatch   ? searchRx(toMatch)   : null;
-
-                const query = { tripType: 'intercity', status: 'active' };
-                if (fromRx && toRx) {
-                    query.$and = [{ route: fromRx }, { route: toRx }];
-                } else if (fromRx) {
-                    query.route = fromRx;
-                } else if (toRx) {
-                    query.route = toRx;
-                } else {
-                    query.route = searchRx(route);
-                }
-                found = await TruckLeasor.findOne(query).sort({ rentedCount: 1 });
-
-                // Fallback: tripType ሳይፈልግ ሞክሩ (ነባር ዳታ ሊኖር ይችላል)
+                // 2nd fallback: tripType ሳይፈልግ ከተማ ስም ብቻ
                 if (!found) {
                     found = await TruckLeasor.findOne({
                         route: searchRx(route), status: 'active'
+                    }).sort({ rentedCount: 1 });
+                }
+
+            } else {
+                // ── ከተማ ወደ ከተማ ─────────────────────────────────────
+                // routeFrom + routeTo ሁለቱን ለብቻ ሰብሮ ፈልጉ
+                const fromStr = routeFrom || route?.replace(/^ከ (.+) ወደ .+$/i, '$1').trim() || '';
+                const toStr   = route?.replace(/^ከ .+ ወደ (.+)$/i, '$1').trim() || route || '';
+
+                const fromRx = fromStr ? searchRx(fromStr) : null;
+                const toRx   = toStr   ? searchRx(toStr)   : null;
+
+                // 1st: intercity + ሁለቱ ቦታ
+                if (fromRx && toRx) {
+                    found = await TruckLeasor.findOne({
+                        tripType: 'intercity',
+                        $and: [{ route: fromRx }, { route: toRx }],
+                        status: 'active'
+                    }).sort({ rentedCount: 1 });
+                }
+                // 2nd: intercity + አንደኛው ቦታ ብቻ
+                if (!found && (fromRx || toRx)) {
+                    found = await TruckLeasor.findOne({
+                        tripType: 'intercity',
+                        route: fromRx || toRx,
+                        status: 'active'
+                    }).sort({ rentedCount: 1 });
+                }
+                // 3rd fallback: tripType ሳይፈልግ ሁለቱ ቦታ (ነባር ዳታ)
+                if (!found && fromRx && toRx) {
+                    found = await TruckLeasor.findOne({
+                        $and: [{ route: fromRx }, { route: toRx }],
+                        status: 'active'
+                    }).sort({ rentedCount: 1 });
+                }
+                // 4th fallback: tripType ሳይፈልግ አንደኛው ቦታ (ነባር ዳታ)
+                if (!found && (fromRx || toRx)) {
+                    found = await TruckLeasor.findOne({
+                        route: fromRx || toRx, status: 'active'
                     }).sort({ rentedCount: 1 });
                 }
             }
@@ -1362,7 +1366,9 @@ bot.on('text', async (ctx, next) => {
                 await ctx.reply(truckCardBuyer(found.toObject()), { parse_mode: 'Markdown' });
                 TruckLeasor.findByIdAndUpdate(found._id, { $inc: { rentedCount: 1 } }).catch(() => {});
             } else {
-                const tripLabel = tripType === 'local' ? `🏙️ ${esc(route)} (ከተማ ውስጥ)` : `🛣️ ${esc(route)}`;
+                const tripLabel = tripType === 'local'
+                    ? `🏙️ ${esc(route)} (ከተማ ውስጥ)`
+                    : `🛣️ ${esc(routeFrom || '')} → ${esc(route?.replace(/^ከ .+ ወደ /i,'').trim() || '')}`;
                 await ctx.reply(`😔 *"${esc(type)}"* — ${tripLabel}\n\nለጊዜው ዝግጁ ትራክ አልተገኘም። ሲኖር እናሳውቀዎታለን! 🔔`, { parse_mode: 'Markdown' });
             }
             await ctx.reply(supportLine, { parse_mode: 'Markdown' });
