@@ -1,7 +1,7 @@
 'use strict';
 
 // ╔══════════════════════════════════════════════════════════════╗
-// ║          Simple Marketplace Bot  v6.4  ✨                   ║
+// ║          Simple Marketplace Bot  v6.5  ✨                   ║
 // ║      ሲሚንቶ  ·  ብረት  ·  ማሽነሪ  ·  ትራክ                        ║
 // ╚══════════════════════════════════════════════════════════════╝
 
@@ -513,33 +513,33 @@ function truckStatusBadge(status) {
 function cementCardBuyer(it) {
     return (
         `🧱 *${esc(it.companyName || it.type)}*\n` +
-        `├ አይነት፡ ${esc(it.type)}\n` +
-        `├ 📍 ቦታ፡ ${esc(it.location)}\n` +
-        `├ 💰 ዋጋ፡ *${fmt(it.price)} ብር/ኩንታል*\n` +
-        `└ ${statusBadge(it.status)}`
+        `▪ አይነት: ${esc(it.type)}\n` +
+        `▪ 📍 ቦታ: ${esc(it.location)}\n` +
+        `▪ 💰 ዋጋ: *${fmt(it.price)} ብር/ኩንታል*\n` +
+        `▪ ${statusBadge(it.status)}`
     );
 }
 function steelCardBuyer(it) {
     return (
         `🟥 *${esc(it.type)}*\n` +
-        `├ 📍 አድራሻ፡ ${esc(it.address)}\n` +
-        `├ 💰 ዋጋ፡ *${fmt(it.price)} ብር*\n` +
-        `└ ${statusBadge(it.status)}`
+        `▪ 📍 አድራሻ: ${esc(it.address)}\n` +
+        `▪ 💰 ዋጋ: *${fmt(it.price)} ብር*\n` +
+        `▪ ${statusBadge(it.status)}`
     );
 }
 function macCardBuyer(it) {
     return (
         `🔹 *${esc(it.type)}*\n` +
-        `├ 📍 አድራሻ፡ ${esc(it.address)}\n` +
-        `├ 💰 ኪራይ፡ *${fmt(it.price)} ብር*\n` +
-        `└ ${statusBadge(it.status)}`
+        `▪ 📍 አድራሻ: ${esc(it.address)}\n` +
+        `▪ 💰 ኪራይ: *${fmt(it.price)} ብር*\n` +
+        `▪ ${statusBadge(it.status)}`
     );
 }
 function truckCardBuyer(it) {
     return (
         `🚚 *${esc(it.type)}*\n` +
-        `├ 🛣️ መስመር፡ ${esc(it.route)}\n` +
-        `└ ${truckStatusBadge(it.status)}`
+        `▪ 🛣️ መስመር: ${esc(it.route)}\n` +
+        `▪ ${truckStatusBadge(it.status)}`
     );
 }
 
@@ -552,11 +552,11 @@ function cementCard(it, adminView = false) {
         : statusBadge(it.status);
     return (
         `🧱 *${esc(it.companyName || it.type)}*\n` +
-        `├ አይነት፡ ${esc(it.type)}\n` +
-        `├ 📍 ቦታ፡ ${esc(it.location)}\n` +
-        `├ 📞 ስልክ፡ \`${esc(it.phone)}\`\n` +
-        `├ 💰 ዋጋ፡ *${fmt(it.price)} ብር/ኩንታል*\n` +
-        `└ ${badge}`
+        `▪ አይነት: ${esc(it.type)}\n` +
+        `▪ 📍 ቦታ: ${esc(it.location)}\n` +
+        `▪ 📞 ስልክ: \`${esc(it.phone)}\`\n` +
+        `▪ 💰 ዋጋ: *${fmt(it.price)} ብር/ኩንታል*\n` +
+        `▪ ${badge}`
     );
 }
 function steelCard(it, adminView = false) {
@@ -565,10 +565,10 @@ function steelCard(it, adminView = false) {
         : statusBadge(it.status);
     return (
         `🟥 *${esc(it.type)}*\n` +
-        `├ 📍 አድራሻ፡ ${esc(it.address)}\n` +
-        `├ 📞 ስልክ፡ \`${esc(it.phone)}\`\n` +
-        `├ 💰 ዋጋ፡ *${fmt(it.price)} ብር*\n` +
-        `└ ${badge}`
+        `▪ 📍 አድራሻ: ${esc(it.address)}\n` +
+        `▪ 📞 ስልክ: \`${esc(it.phone)}\`\n` +
+        `▪ 💰 ዋጋ: *${fmt(it.price)} ብር*\n` +
+        `▪ ${badge}`
     );
 }
 function macCard(it, adminView = false) {
@@ -577,10 +577,10 @@ function macCard(it, adminView = false) {
         : statusBadge(it.status);
     return (
         `🔹 *${esc(it.type)}*\n` +
-        `├ 📍 አድራሻ፡ ${esc(it.address)}\n` +
-        `├ 📞 ስልክ፡ \`${esc(it.phone)}\`\n` +
-        `├ 💰 ኪራይ፡ *${fmt(it.price)} ብር*\n` +
-        `└ ${badge}`
+        `▪ 📍 አድራሻ: ${esc(it.address)}\n` +
+        `▪ 📞 ስልክ: \`${esc(it.phone)}\`\n` +
+        `▪ 💰 ኪራይ: *${fmt(it.price)} ብር*\n` +
+        `▪ ${badge}`
     );
 }
 function truckCard(it, adminView = false) {
@@ -589,10 +589,10 @@ function truckCard(it, adminView = false) {
         : truckStatusBadge(it.status);
     return (
         `🚚 *${esc(it.type)}*\n` +
-        `├ 🚗 ታርጋ፡ ${esc(it.plate)}\n` +
-        `├ 🛣️ መስመር፡ ${esc(it.route)}\n` +
-        `├ 📞 ስልክ፡ \`${esc(it.phone)}\`\n` +
-        `└ ${badge}`
+        `▪ 🚗 ታርጋ: ${esc(it.plate)}\n` +
+        `▪ 🛣️ መስመር: ${esc(it.route)}\n` +
+        `▪ 📞 ስልክ: \`${esc(it.phone)}\`\n` +
+        `▪ ${badge}`
     );
 }
 
@@ -666,7 +666,7 @@ function isValidObjectId(id) {
 const welcomeText = (name) =>
     `👋 *ሰላም ${esc(name)}!*\n\n` +
     `✨ *እንኳን ወደ መረጃ Bot በደህና መጡ!* ✨\n\n` +
-    `🏗️ ሲሚንቶ፣ ብረት፣ ማሽነሪ እና መኪና በተመጣጣኝ ዋጋ ለመገበያየት እና ለመከራየት የቀረበ ዘመናዊ መድረክ።\n\n` +
+    `🏗️ ሲሚንቶ፣ ብረት፣ ማሽነሪ እና መኪና ለመግዛት እና ለመከራየት የቀረበ ዘመናዊ መድረክ።\n\n` +
     `❓ *ምን ይፈልጋሉ?*\n_ከእርስዎ የሚጠበቀው ከታች ካሉት ቁልፎች የሚፈልጉትን መጫን ብቻ ነው_`;
 
 // ──────────────────────────────────────────────────────────
