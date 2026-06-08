@@ -455,6 +455,15 @@ const TRUCK_TYPES = [
 // ── FIX 2: ለ"መኪና ለመከራየት" — መጀመሪያ የሚታዩ የጉዞ ዓይነት አማራጮች
 const TRUCK_TRIP_MODE = ['🏙️ በከተማ ውስጥ', '🛣️ ከከተማ ወደ ከተማ'];
 
+// ── ለ"በከተማ ውስጥ" — 5 ዋና ከተሞች
+const CITY_IN_TOWN = [
+    '🏙️ አዲስ አበባ',
+    '🌆 ሀዋሳ',
+    '🌇 አዳማ',
+    '🌃 ባህርዳር',
+    '🌉 ድሬዳዋ'
+];
+
 const TRUCK_ROUTES_FROM = [
     'አ.አ', 'ሀዋሳ', 'አዳማ', 'ባህርዳር', 'ጎንደር',
     'መቀሌ', 'ጅማ',  'ድሬዳዋ', 'ደሴ',   'ሌላ'
@@ -479,6 +488,17 @@ function choiceKb(options, prefix, cols = 3) {
             Markup.button.callback(o, `${prefix}${o}`)
         ));
     }
+    return Markup.inlineKeyboard(rows);
+}
+
+function choiceKbWithBack(options, prefix, cols = 3, backAction = 'go_home') {
+    const rows = [];
+    for (let i = 0; i < options.length; i += cols) {
+        rows.push(options.slice(i, i + cols).map(o =>
+            Markup.button.callback(o, `${prefix}${o}`)
+        ));
+    }
+    rows.push([Markup.button.callback('⬅️ ወደ ኋላ', backAction)]);
     return Markup.inlineKeyboard(rows);
 }
 
@@ -662,7 +682,7 @@ bot.start(ctx => {
     const name = sanitize(ctx.from.first_name || 'ጎብኚ');
     ctx.reply(
         `👋 *ሰላም ${esc(name)}!*\n\n` +
-        `🏗️ *Simple Marketplace* — ሲሚንቶ፣ ብረት፣ ማሽነሪ፣ ትራክ\n\n` +
+        `🏗️ *Simple Marketplace* — ሲሚንቶ፣ ብረት፣ ማሽነሪ፣ መኪና\n\n` +
         `👇 ከታቹ ይምረጡ:`,
         { parse_mode: 'Markdown', ...mainKb }
     );
@@ -688,7 +708,7 @@ bot.action('go_home', async ctx => {
     const name = sanitize(ctx.from.first_name || 'ጎብኚ');
     await ctx.reply(
         `👋 *ሰላም ${esc(name)}!*\n\n` +
-        `🏗️ *Simple Marketplace* — ሲሚንቶ፣ ብረት፣ ማሽነሪ፣ ትራክ\n\n` +
+        `🏗️ *Simple Marketplace* — ሲሚንቶ፣ ብረት፣ ማሽነሪ፣ መኪና\n\n` +
         `👇 ከታቹ ይምረጡ:`,
         { parse_mode: 'Markdown', ...mainKb }
     );
@@ -1087,11 +1107,13 @@ bot.action(/^BTRK_(.+)$/, async ctx => {
         ctx.session.rentTruck = { type: val };
         ctx.session.action = 'RENT_TRUCK_TRIP_MODE';
         // FIX 2: First ask trip mode
-        await askChoice(ctx,
-            '`[2/4]` 🛣️ *የጉዞ ዓይነት ይምረጡ:*\n\n' +
+        const sent = await ctx.reply(
+            '`[2/5]` 🛣️ *የጉዞ ዓይነት ይምረጡ:*\n\n' +
             '🏙️ *በከተማ ውስጥ* — ርቀት ሳይጓዙ፣ ከተማ ውስጥ ብቻ\n' +
             '🛣️ *ከከተማ ወደ ከተማ* — ረዥም ጉዞ',
-            TRUCK_TRIP_MODE, 'BTRKMODE_', 2);
+            { parse_mode: 'Markdown', ...choiceKbWithBack(TRUCK_TRIP_MODE, 'BTRKMODE_', 2, 'BACK_TRUCK_TYPE') }
+        );
+        ctx.session.lastMsgId = sent.message_id;
     }
 });
 
@@ -1102,17 +1124,65 @@ bot.action(/^BTRKMODE_(.+)$/, async ctx => {
     await deletePrev(ctx);
 
     if (val === '🏙️ በከተማ ውስጥ') {
-        ctx.session.rentTruck.route = 'በከተማ ውስጥ';
-        ctx.session.action = 'RENT_TRUCK_3';
-        const sent = await ctx.reply('`[3/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\n_ሾፌሩ ያገኝዎ ዘንድ ቁጥርዎን ያስገቡ።_', { parse_mode: 'Markdown' });
+        // Ask which city
+        ctx.session.action = 'RENT_TRUCK_CITY';
+        const sent = await ctx.reply(
+            '`[3/5]` 🏙️ *በየትኛው ከተማ ውስጥ ነው መኪና የሚፈልጉት?*\n_ቦታዎን ይምረጡ:_',
+            { parse_mode: 'Markdown', ...choiceKbWithBack(CITY_IN_TOWN, 'BTRKCITY_', 1, 'BACK_TRIP_MODE') }
+        );
         ctx.session.lastMsgId = sent.message_id;
     } else {
         // ከከተማ ወደ ከተማ — ask FROM city
         ctx.session.action = 'RENT_TRUCK_2';
-        await askChoice(ctx,
-            '`[3/4]` 🛣️ *ጉዞ ከየት ይጀምራሉ? (መነሻ ቦታ):*',
-            TRUCK_ROUTES_FROM, 'BTRKLOC_', 4);
+        const sent = await ctx.reply(
+            '`[3/5]` 🛣️ *ጉዞ ከየት ይጀምራሉ? (መነሻ ቦታ):*',
+            { parse_mode: 'Markdown', ...choiceKbWithBack(TRUCK_ROUTES_FROM, 'BTRKLOC_', 4, 'BACK_TRIP_MODE') }
+        );
+        ctx.session.lastMsgId = sent.message_id;
     }
+});
+
+// ── BACK: ወደ trip mode ተመለስ
+bot.action('BACK_TRIP_MODE', async ctx => {
+    await ctx.answerCbQuery();
+    await deletePrev(ctx);
+    ctx.session.action = 'RENT_TRUCK_TRIP_MODE';
+    const sent = await ctx.reply(
+        '`[2/5]` 🛣️ *የጉዞ ዓይነት ይምረጡ:*\n\n' +
+        '🏙️ *በከተማ ውስጥ* — ርቀት ሳይጓዙ፣ ከተማ ውስጥ ብቻ\n' +
+        '🛣️ *ከከተማ ወደ ከተማ* — ረዥም ጉዞ',
+        { parse_mode: 'Markdown', ...choiceKbWithBack(TRUCK_TRIP_MODE, 'BTRKMODE_', 2, 'BACK_TRUCK_TYPE') }
+    );
+    ctx.session.lastMsgId = sent.message_id;
+});
+
+// ── BACK: ወደ truck type ምርጫ ተመለስ
+bot.action('BACK_TRUCK_TYPE', async ctx => {
+    await ctx.answerCbQuery();
+    await deletePrev(ctx);
+    ctx.session.action = 'RENT_TRUCK_1';
+    ctx.session.rentTruck = {};
+    const sent = await ctx.reply(
+        '`[1/5]` 🚚 *ምን አይነት መኪና ይፈልጋሉ?*',
+        { parse_mode: 'Markdown', ...choiceKbWithBack(TRUCK_TYPES, 'BTRK_', 2, 'go_home') }
+    );
+    ctx.session.lastMsgId = sent.message_id;
+});
+
+// ── City in town selection
+bot.action(/^BTRKCITY_(.+)$/, async ctx => {
+    const raw = sanitize(ctx.match[1]);
+    // strip emoji prefix like "🏙️ " 
+    const cityName = raw.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\uFE0F\s]+/u, '').trim() || raw;
+    await ctx.answerCbQuery();
+    await deletePrev(ctx);
+    ctx.session.rentTruck.route = `በከተማ ውስጥ — ${cityName}`;
+    ctx.session.action = 'RENT_TRUCK_3';
+    const sent = await ctx.reply(
+        '`[4/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\n_ሾፌሩ ያገኝዎ ዘንድ ቁጥርዎን ያስገቡ።_',
+        { parse_mode: 'Markdown' }
+    );
+    ctx.session.lastMsgId = sent.message_id;
 });
 
 bot.action(/^BTRKLOC_(.+)$/, async ctx => {
@@ -1128,7 +1198,11 @@ bot.action(/^BTRKLOC_(.+)$/, async ctx => {
         } else {
             ctx.session.rentTruck.routeFrom = raw;
             ctx.session.action = 'RENT_TRUCK_2_TO';
-            await askChoice(ctx, '🛣️ *ወዴት ቦታ ይፈልጋሉ? (መድረሻ):*\n_ጉዞ የሚደርሱበትን ቦታ ይምረጡ።_', TRUCK_ROUTES_TO, 'BTRKTO_', 4);
+            const sent = await ctx.reply(
+                '🛣️ *ወዴት ቦታ ይፈልጋሉ? (መድረሻ):*\n_ጉዞ የሚደርሱበትን ቦታ ይምረጡ።_',
+                { parse_mode: 'Markdown', ...choiceKbWithBack(TRUCK_ROUTES_TO, 'BTRKTO_', 4, 'BACK_TRIP_MODE') }
+            );
+            ctx.session.lastMsgId = sent.message_id;
         }
     }
 });
@@ -1144,7 +1218,7 @@ bot.action(/^BTRKTO_(.+)$/, async ctx => {
     } else {
         ctx.session.rentTruck.route = `ከ ${ctx.session.rentTruck.routeFrom || ''} ወደ ${val}`;
         ctx.session.action = 'RENT_TRUCK_3';
-        const sent = await ctx.reply('`[4/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\n_ሾፌሩ ያገኝዎ ዘንድ ቁጥርዎን ያስገቡ።_', { parse_mode: 'Markdown' });
+        const sent = await ctx.reply('`[4/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\n_ሾፌሩ ያገኝዎ ዘንድ ቁጥርዎን ያስገቡ።_', { parse_mode: 'Markdown' });
         ctx.session.lastMsgId = sent.message_id;
     }
 });
@@ -1200,9 +1274,13 @@ bot.hears('🔹 ማሽነሪ ለመከራየት', ctx => {
     ctx.session.action = 'RENT_MACHINERY_1'; ctx.session.rentMachinery = {};
     askChoice(ctx, '🔹 `[1/3]` *ምን አይነት ማሽነሪ ይፈልጋሉ?*', MACHINERY_TYPES, 'BMAC_', 2);
 });
-bot.hears('🚚 መኪና ለመከራየት', ctx => {
+bot.hears('🚚 መኪና ለመከራየት', async ctx => {
     ctx.session.action = 'RENT_TRUCK_1'; ctx.session.rentTruck = {};
-    askChoice(ctx, '🚚 `[1/4]` *ምን አይነት መኪና ይፈልጋሉ?*', TRUCK_TYPES, 'BTRK_', 2);
+    const sent = await ctx.reply(
+        '`[1/5]` 🚚 *ምን አይነት መኪና ይፈልጋሉ?*',
+        { parse_mode: 'Markdown', ...choiceKbWithBack(TRUCK_TYPES, 'BTRK_', 2, 'go_home') }
+    );
+    ctx.session.lastMsgId = sent.message_id;
 });
 
 // ──────────────────────────────────────────────────────────
@@ -1358,7 +1436,7 @@ bot.on('text', async (ctx, next) => {
             ctx.session.rentTruck = { type: text };
             ctx.session.action = 'RENT_TRUCK_TRIP_MODE';
             return askChoice(ctx,
-                step(2, 4, '🛣️ *የጉዞ ዓይነት ይምረጡ:*\n\n' +
+                step(2, 5, '🛣️ *የጉዞ ዓይነት ይምረጡ:*\n\n' +
                     '🏙️ *በከተማ ውስጥ* — ርቀት ሳይጓዙ\n' +
                     '🛣️ *ከከተማ ወደ ከተማ* — ረዥም ጉዞ'),
                 TRUCK_TRIP_MODE, 'BTRKMODE_', 2);
@@ -1371,7 +1449,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'RENT_TRUCK_2_TO' || action === 'RENT_TRUCK_2_TO_TEXT') {
             ctx.session.rentTruck.route = `ከ ${ctx.session.rentTruck.routeFrom || ''} ወደ ${text}`;
             ctx.session.action = 'RENT_TRUCK_3';
-            return sendStep(ctx, step(4, 4, '📞 *ስልክ ቁጥርዎን ያስገቡ:*\n_ሾፌሩ ያገኝዎ ዘንድ ቁጥርዎን ያስገቡ።_'));
+            return sendStep(ctx, step(4, 5, '📞 *ስልክ ቁጥርዎን ያስገቡ:*\n_ሾፌሩ ያገኝዎ ዘንድ ቁጥርዎን ያስገቡ።_'));
         }
         if (action === 'RENT_TRUCK_3') {
             const { type, route } = ctx.session.rentTruck;
