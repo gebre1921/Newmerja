@@ -1,7 +1,7 @@
 'use strict';
 
 // ╔══════════════════════════════════════════════════════════════╗
-// ║          Simple Marketplace Bot  v6.3  ✨                   ║
+// ║          Simple Marketplace Bot  v6.4  ✨                   ║
 // ║      ሲሚንቶ  ·  ብረት  ·  ማሽነሪ  ·  ትራክ                        ║
 // ╚══════════════════════════════════════════════════════════════╝
 
@@ -216,15 +216,12 @@ function ethTimestamp(date) {
 // SMART SEARCH — bilingual + fuzzy + typo-tolerant
 // ──────────────────────────────────────────────────────────
 const SYNONYM_GROUPS = [
-    // ── ሲሚንቶ brands ──────────────────────────────────────────
     ['ዳንጎቴ', 'dangote', 'dangoto', 'dangte'],
     ['ድሬ', 'dire', 'diredawa', 'ድሬዳዋ'],
     ['ናሽናል', 'national', 'nashenal'],
     ['ሙገር', 'mugher', 'muger'],
     ['ደርባ', 'derba'],
     ['ሲሚንቶ', 'cement', 'cemento', 'siminto'],
-
-    // ── ብረት / Steel ──────────────────────────────────────────
     ['ብረት', 'steel', 'iron', 'bireet'],
     ['ቆርቆሮ', 'rod', 'bar', 'rebar'],
     ['ባለ 8', 'ባለ8', '8mm', '8 mm', 'bale 8', '8'],
@@ -232,8 +229,6 @@ const SYNONYM_GROUPS = [
     ['ባለ 12', 'ባለ12', '12mm', '12 mm', 'bale 12', '12'],
     ['ባለ 14', 'ባለ14', '14mm', '14 mm', 'bale 14'],
     ['ባለ 16', 'ባለ16', '16mm', '16 mm', 'bale 16'],
-
-    // ── ማሽነሪ ──────────────────────────────────────────────────
     ['ማሽነሪ', 'machinery', 'machine', 'mashineri'],
     ['ኤክስካቫተር', 'excavator', 'exkavator', 'excavater', 'digger'],
     ['ቡልዶዘር', 'bulldozer', 'buldozer', 'bull dozer'],
@@ -252,8 +247,6 @@ const SYNONYM_GROUPS = [
     ['ኤር ኮምፕሬሰር', 'air compressor', 'compressor', 'ኮምፕሬሰር'],
     ['ሚኒ ኤክስካቫተር', 'mini excavator', 'small excavator'],
     ['ሎ ቤድ', 'low bed', 'lowbed', 'lowloader'],
-
-    // ── ትራክ / Truck types ─────────────────────────────────────
     ['ሲኖትራክ', 'sinotruk', 'sino truck', 'sino', 'sinotruck', 'sino-truck'],
     ['ፎው', 'faw', 'faaw'],
     ['ኢሱዙ', 'isuzu', 'fsr', 'fsr isuzu'],
@@ -275,8 +268,6 @@ const SYNONYM_GROUPS = [
     ['ካብ ትራክ', 'cab truck', 'tractor head', 'tractor unit', 'ትራክተር ሄድ'],
     ['ፒክ አፕ ካርጎ', 'pickup cargo', 'light truck'],
     ['ከብት መጫኛ', 'livestock truck', 'cattle truck', 'animal truck'],
-
-    // ── ቦታዎች / Locations ──────────────────────────────────────
     ['አዲስ አበባ', 'addis ababa', 'addis', 'አ.አ', 'aa', 'a.a'],
     ['ሀዋሳ', 'hawasa', 'hawassa', 'awasa'],
     ['አዳማ', 'adama', 'nazret', 'ናዝሬት'],
@@ -333,8 +324,6 @@ const SYNONYM_GROUPS = [
     ['ዓዋሽ', 'awash', 'awash arba'],
     ['ሚሌ', 'mile', 'mille'],
     ['ሰሜን ወሎ', 'north welo', 'n. welo'],
-
-    // ── መስመሮች / Routes ────────────────────────────────────────
     ['በከተማ ውስጥ', 'in city', 'local', 'city', 'addis local', 'local delivery'],
 ];
 
@@ -393,15 +382,12 @@ function searchRx(s) {
     const alts = buildAlternatives(s);
     const patterns = alts.map(a => {
         const escaped = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // ── FIX 3: looser match — no character-by-character expansion for multi-word
         return escaped;
     });
     return new RegExp(patterns.join('|'), 'i');
 }
 
-// ── FIX 3: Improved truck search — tries multiple strategies
 async function findTruck(type, route) {
-    // Strategy 1: exact type + route match
     const typeRx  = searchRx(type);
     const routeRx = searchRx(route);
 
@@ -411,14 +397,12 @@ async function findTruck(type, route) {
 
     if (results.length) return results;
 
-    // Strategy 2: type only (any route)
     results = await TruckLeasor.find({
         type: typeRx, status: 'active'
     }).sort({ rentedCount: 1 }).limit(5).lean();
 
     if (results.length) return results;
 
-    // Strategy 3: route only (any truck type)
     results = await TruckLeasor.find({
         route: routeRx, status: 'active'
     }).sort({ rentedCount: 1 }).limit(5).lean();
@@ -440,22 +424,15 @@ function logSearch(ctx, category, searchedFor, phone) {
 // DROPDOWN OPTION LISTS
 // ──────────────────────────────────────────────────────────
 const CEMENT_TYPES = ['ዳንጎቴ', 'ድሬ', 'ናሽናል', 'ሙገር', 'ደርባ', 'ሌላ'];
-
 const STEEL_TYPES = ['ባለ 8', 'ባለ 10', 'ባለ 12', 'ባለ 14', 'ባለ 16', 'ቆርቆሮ (ሌላ)'];
-
 const MACHINERY_TYPES = [
     'ኤክስካቫተር', 'ቡልዶዘር', 'ጂሬደር',
     'ሮለር', 'ሎደር', 'ክሬን', 'ሌላ'
 ];
-
 const TRUCK_TYPES = [
     'ሲኖትራክ', 'FSR Isuzu', 'ተሳቢ', 'ሌላ'
 ];
-
-// ── FIX 2: ለ"መኪና ለመከራየት" — መጀመሪያ የሚታዩ የጉዞ ዓይነት አማራጮች
 const TRUCK_TRIP_MODE = ['🏙️ በከተማ ውስጥ', '🛣️ ከከተማ ወደ ከተማ'];
-
-// ── ለ"በከተማ ውስጥ" — 5 ዋና ከተሞች
 const CITY_IN_TOWN = [
     '🏙️ አዲስ አበባ',
     '🌆 ሀዋሳ',
@@ -463,24 +440,20 @@ const CITY_IN_TOWN = [
     '🌃 ባህርዳር',
     '🌉 ድሬዳዋ'
 ];
-
 const TRUCK_ROUTES_FROM = [
     'አ.አ', 'ሀዋሳ', 'አዳማ', 'ባህርዳር', 'ጎንደር',
     'መቀሌ', 'ጅማ',  'ድሬዳዋ', 'ደሴ',   'ሌላ'
 ];
-
 const TRUCK_ROUTES_TO = [
     'አ.አ', 'ሀዋሳ', 'አዳማ', 'ባህርዳር', 'ጎንደር',
     'መቀሌ', 'ጅማ',  'ድሬዳዋ', 'ደሴ',   'ሌላ'
 ];
-
 const LOCATIONS = [
     'አዲስ አበባ', 'ሀዋሳ',  'አዳማ',   'ባህርዳር', 'ጎንደር',
     'መቀሌ',     'ጅማ',   'ድሬዳዋ',  'ደሴ',    'ሐረር',
     'ወልዲያ',    'ኮሚቦልቻ','ሻሸመኔ',  'ሞጆ',    'ሌላ'
 ];
 
-// ── Inline keyboard builder ───────────────────────────────
 function choiceKb(options, prefix, cols = 3) {
     const rows = [];
     for (let i = 0; i < options.length; i += cols) {
@@ -502,25 +475,17 @@ function choiceKbWithBack(options, prefix, cols = 3, backAction = 'go_home') {
     return Markup.inlineKeyboard(rows);
 }
 
-// ──────────────────────────────────────────────────────────
-// FIX 1 — Contact Us keyboard (no tel: URL — use plain text)
-// ──────────────────────────────────────────────────────────
 const contactUsKb = Markup.inlineKeyboard([
     [Markup.button.callback('🏠 ወደ ዋና ማውጫ ተመለስ', 'go_home')]
 ]);
 
-// ──────────────────────────────────────────────────────────
-// FIX 4 — Status badges (ግልጽ ቋንቋ ለተጠቃሚ)
-// ──────────────────────────────────────────────────────────
 function statusBadge(status) {
-    // ለሲሚንቶ፣ ብረት፣ ማሽነሪ
     return status === 'active'
         ? '🟢 ክምችት አለ — ይሸጣል'
         : '🔴 ክምችት የለም — አይሸጥም';
 }
 
 function truckStatusBadge(status) {
-    // ለትራክ
     return status === 'active'
         ? '🟢 ዝግጁ ነው — ሊከራይ ይችላል'
         : '🔴 ስራ ላይ ነው — አይከራይም';
@@ -610,7 +575,7 @@ function truckCard(it, adminView = false) {
 }
 
 // ──────────────────────────────────────────────────────────
-// PER-ITEM KEYBOARDS — FIX 4: button labels ግልጽ ቋንቋ
+// PER-ITEM KEYBOARDS
 // ──────────────────────────────────────────────────────────
 const cementItemKb  = id => Markup.inlineKeyboard([
     [Markup.button.callback('🟢 ክምችት አለ',      `cem_on_${id}`),
@@ -625,14 +590,14 @@ const steelItemKb   = id => Markup.inlineKeyboard([
      Markup.button.callback('➕ ሌላ ብረት ጨምር', 'stl_add')]
 ]);
 const macItemKb     = id => Markup.inlineKeyboard([
-    [Markup.button.callback('🟢 ዝግጁ ነው — ይከራያል',   `mac_on_${id}`),
-     Markup.button.callback('🔴 ስራ ላይ — አይከራይም',   `mac_off_${id}`)],
+    [Markup.button.callback('🟢 ዝግጁ ነው',   `mac_on_${id}`),
+     Markup.button.callback('🔴 ስራ ላይ ነው',   `mac_off_${id}`)],
     [Markup.button.callback('💰 ዋጋ ቀይር',             `mac_price_${id}`),
      Markup.button.callback('➕ ሌላ ማሽነሪ ጨምር',      'mac_add')]
 ]);
 const truckItemKb   = id => Markup.inlineKeyboard([
-    [Markup.button.callback('🟢 ዝግጁ ነው — ሊከራይ ይችላል', `trk_on_${id}`),
-     Markup.button.callback('🔴 ስራ ላይ ነው — አይከራይም',  `trk_off_${id}`)],
+    [Markup.button.callback('🟢 ዝግጁ ነው', `trk_on_${id}`),
+     Markup.button.callback('🔴 ስራ ላይ ነው',  `trk_off_${id}`)],
     [Markup.button.callback('🗺️ መስመር ቀይር',            `trk_route_${id}`),
      Markup.button.callback('➕ ሌላ መኪና ጨምር',          'trk_add')]
 ]);
@@ -682,22 +647,19 @@ bot.start(ctx => {
     const name = sanitize(ctx.from.first_name || 'ጎብኚ');
     ctx.reply(
         `👋 *ሰላም ${esc(name)}!*\n\n` +
-        `🏗️ *Simple Marketplace* — ሲሚንቶ፣ ብረት፣ ማሽነሪ፣ መኪና\n\n` +
-        `👇 ከታቹ ይምረጡ:`,
+        `🏗️ *market place መሰላል*\n\n` +
+        `👇 ምን ይፈልጋሉ? ከእርስዎ ሚጠበቀው ከታች ካሉት ቁልፎች የሚፈልጉትን ይጫኑ:`,
         { parse_mode: 'Markdown', ...mainKb }
     );
 });
 
-// ──────────────────────────────────────────────────────────
-// FIX 1 — Contact Us (plain text phone number, no tel: URL)
-// ──────────────────────────────────────────────────────────
 bot.hears('📞 አግኙን', async ctx => {
     ctx.session.action = null;
     await ctx.reply(
         `📞 *አግኙን*\n\n` +
         `ለማዘዝ፣ ለጥያቄ ወይም ለድጋፍ ከዚህ ጋር ያነጋግሩን:\n\n` +
         `📱 *${SUPPORT_PHONE}*\n\n` +
-        `_ሰኞ — ቅዳሜ  |  ጠዋት 2:00 — ምሽት 11:00_`,
+        `_የስራ ሰዓት ፦ 24/7 (ሁሌም ክፍት ነው)_`,
         { parse_mode: 'Markdown', ...contactUsKb }
     );
 });
@@ -708,8 +670,8 @@ bot.action('go_home', async ctx => {
     const name = sanitize(ctx.from.first_name || 'ጎብኚ');
     await ctx.reply(
         `👋 *ሰላም ${esc(name)}!*\n\n` +
-        `🏗️ *Simple Marketplace* — ሲሚንቶ፣ ብረት፣ ማሽነሪ፣ መኪና\n\n` +
-        `👇 ከታቹ ይምረጡ:`,
+        `🏗️ *market place መሰላል*\n\n` +
+        `👇 ምን ይፈልጋሉ? ከእርስዎ ሚጠበቀው ከታች ካሉት ቁልፎች የሚፈልጉትን ይጫኑ:`,
         { parse_mode: 'Markdown', ...mainKb }
     );
 });
@@ -1026,7 +988,7 @@ bot.action(/^TKTYPE_(.+)$/, async ctx => {
     }
 });
 
-// ── BUYER: ሲሚንቶ ─────────────────────────────────────────────
+// ── BUYER ─────────────────────────────────────────────
 bot.action(/^BCEM_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
     await ctx.answerCbQuery();
@@ -1092,9 +1054,6 @@ bot.action(/^BMAC_(.+)$/, async ctx => {
     }
 });
 
-// ──────────────────────────────────────────────────────────
-// FIX 2 — BUYER: ትራክ — መጀመሪያ "የጉዞ ዓይነት" ይጠይቃል
-// ──────────────────────────────────────────────────────────
 bot.action(/^BTRK_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
     await ctx.answerCbQuery();
@@ -1106,7 +1065,6 @@ bot.action(/^BTRK_(.+)$/, async ctx => {
     } else {
         ctx.session.rentTruck = { type: val };
         ctx.session.action = 'RENT_TRUCK_TRIP_MODE';
-        // FIX 2: First ask trip mode
         const sent = await ctx.reply(
             '`[2/5]` 🛣️ *የጉዞ ዓይነት ይምረጡ:*\n\n' +
             '🏙️ *በከተማ ውስጥ* — ርቀት ሳይጓዙ፣ ከተማ ውስጥ ብቻ\n' +
@@ -1117,14 +1075,12 @@ bot.action(/^BTRK_(.+)$/, async ctx => {
     }
 });
 
-// FIX 2: Handle trip mode selection
 bot.action(/^BTRKMODE_(.+)$/, async ctx => {
     const val = sanitize(ctx.match[1]);
     await ctx.answerCbQuery();
     await deletePrev(ctx);
 
     if (val === '🏙️ በከተማ ውስጥ') {
-        // Ask which city
         ctx.session.action = 'RENT_TRUCK_CITY';
         const sent = await ctx.reply(
             '`[3/5]` 🏙️ *በየትኛው ከተማ ውስጥ ነው መኪና የሚፈልጉት?*\n_ቦታዎን ይምረጡ:_',
@@ -1132,7 +1088,6 @@ bot.action(/^BTRKMODE_(.+)$/, async ctx => {
         );
         ctx.session.lastMsgId = sent.message_id;
     } else {
-        // ከከተማ ወደ ከተማ — ask FROM city
         ctx.session.action = 'RENT_TRUCK_2';
         const sent = await ctx.reply(
             '`[3/5]` 🛣️ *ጉዞ ከየት ይጀምራሉ? (መነሻ ቦታ):*',
@@ -1142,7 +1097,6 @@ bot.action(/^BTRKMODE_(.+)$/, async ctx => {
     }
 });
 
-// ── BACK: ወደ trip mode ተመለስ
 bot.action('BACK_TRIP_MODE', async ctx => {
     await ctx.answerCbQuery();
     await deletePrev(ctx);
@@ -1156,7 +1110,6 @@ bot.action('BACK_TRIP_MODE', async ctx => {
     ctx.session.lastMsgId = sent.message_id;
 });
 
-// ── BACK: ወደ truck type ምርጫ ተመለስ
 bot.action('BACK_TRUCK_TYPE', async ctx => {
     await ctx.answerCbQuery();
     await deletePrev(ctx);
@@ -1169,10 +1122,8 @@ bot.action('BACK_TRUCK_TYPE', async ctx => {
     ctx.session.lastMsgId = sent.message_id;
 });
 
-// ── City in town selection
 bot.action(/^BTRKCITY_(.+)$/, async ctx => {
     const raw = sanitize(ctx.match[1]);
-    // strip emoji prefix like "🏙️ " 
     const cityName = raw.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\uFE0F\s]+/u, '').trim() || raw;
     await ctx.answerCbQuery();
     await deletePrev(ctx);
@@ -1299,7 +1250,6 @@ bot.on('text', async (ctx, next) => {
         `\n📞 *ለማዘዝ ወይም ለተጨማሪ ድጋፍ:*\n` +
         `👉 \`${SUPPORT_PHONE}\``;
 
-    // ── Fuzzy hint helper ──────────────────────────────────
     async function tryFuzzyHint(ctx, input, searchedResults) {
         if (searchedResults.length > 0) return false;
         const closest = findClosestSynonym(input);
@@ -1322,7 +1272,6 @@ bot.on('text', async (ctx, next) => {
     }
 
     try {
-        // ══ CEMENT REGISTRATION ════════════════════════════
         if (action === 'REG_CEMENT_1' || action === 'REG_CEMENT_1_TEXT') {
             ctx.session.cementData = { type: text };
             ctx.session.action = 'REG_CEMENT_2';
@@ -1352,7 +1301,6 @@ bot.on('text', async (ctx, next) => {
             return ctx.reply(cementCard(doc.toObject(), false), { parse_mode: 'Markdown', ...cementItemKb(doc._id) });
         }
 
-        // ══ UPDATE CEMENT PRICE ════════════════════════════
         if (action === 'UPD_CEM_PRICE') {
             const price = safePrice(text);
             if (!price) return sendStep(ctx, '⚠️ *ትክክለኛ ቁጥር ያስገቡ!*\n_ለምሳሌ: 650_');
@@ -1363,7 +1311,6 @@ bot.on('text', async (ctx, next) => {
             return ctx.reply(cementCard(doc.toObject(), false), { parse_mode: 'Markdown', ...cementItemKb(doc._id) });
         }
 
-        // ══ BUY CEMENT ════════════════════════════════════
         if (action === 'BUY_CEMENT_1' || action === 'BUY_CEMENT_1_TEXT') {
             ctx.session.buyCement = { type: text };
             ctx.session.action = 'BUY_CEMENT_2';
@@ -1398,7 +1345,6 @@ bot.on('text', async (ctx, next) => {
             return;
         }
 
-        // ══ TRUCK REGISTRATION ════════════════════════════
         if (action === 'REG_TRUCK_1' || action === 'REG_TRUCK_1_TEXT') {
             ctx.session.truckData = { type: text };
             ctx.session.action = 'REG_TRUCK_2';
@@ -1422,7 +1368,6 @@ bot.on('text', async (ctx, next) => {
             return ctx.reply(truckCard(doc.toObject(), false), { parse_mode: 'Markdown', ...truckItemKb(doc._id) });
         }
 
-        // ══ UPDATE TRUCK ROUTE ════════════════════════════
         if (action === 'UPD_TRK_ROUTE') {
             const doc = await TruckLeasor.findByIdAndUpdate(ctx.session.targetItemId, { route: text }, { new: true });
             ctx.session.action = null; ctx.session.targetItemId = null; ctx.session.lastMsgId = null;
@@ -1431,7 +1376,6 @@ bot.on('text', async (ctx, next) => {
             return ctx.reply(truckCard(doc.toObject(), false), { parse_mode: 'Markdown', ...truckItemKb(doc._id) });
         }
 
-        // ══ RENT TRUCK ════════════════════════════════════
         if (action === 'RENT_TRUCK_1' || action === 'RENT_TRUCK_1_TEXT') {
             ctx.session.rentTruck = { type: text };
             ctx.session.action = 'RENT_TRUCK_TRIP_MODE';
@@ -1455,7 +1399,6 @@ bot.on('text', async (ctx, next) => {
             const { type, route } = ctx.session.rentTruck;
             logSearch(ctx, '🚚 ትራክ ፈላጊ', `${type} | ${route}`, text);
 
-            // FIX 3: Use improved multi-strategy search
             const results = await findTruck(type, route);
 
             ctx.session.lastMsgId = null;
@@ -1488,7 +1431,6 @@ bot.on('text', async (ctx, next) => {
             return;
         }
 
-        // ══ STEEL REGISTRATION ════════════════════════════
         if (action === 'REG_STEEL_1' || action === 'REG_STEEL_1_TEXT') {
             ctx.session.steelData = { type: text };
             ctx.session.action = 'REG_STEEL_2';
@@ -1513,7 +1455,6 @@ bot.on('text', async (ctx, next) => {
             return ctx.reply(steelCard(doc.toObject(), false), { parse_mode: 'Markdown', ...steelItemKb(doc._id) });
         }
 
-        // ══ UPDATE STEEL PRICE ════════════════════════════
         if (action === 'UPD_STL_PRICE') {
             const price = safePrice(text);
             if (!price) return sendStep(ctx, '⚠️ *ትክክለኛ ቁጥር ያስገቡ!*\n_ለምሳሌ: 5000_');
@@ -1524,7 +1465,6 @@ bot.on('text', async (ctx, next) => {
             return ctx.reply(steelCard(doc.toObject(), false), { parse_mode: 'Markdown', ...steelItemKb(doc._id) });
         }
 
-        // ══ BUY STEEL ═════════════════════════════════════
         if (action === 'BUY_STEEL_1' || action === 'BUY_STEEL_1_TEXT') {
             ctx.session.buySteel = { type: text };
             ctx.session.action = 'BUY_STEEL_2';
@@ -1556,7 +1496,6 @@ bot.on('text', async (ctx, next) => {
             return;
         }
 
-        // ══ MACHINERY REGISTRATION ════════════════════════
         if (action === 'REG_MACHINERY_1' || action === 'REG_MACHINERY_1_TEXT') {
             ctx.session.machineryData = { type: text };
             ctx.session.action = 'REG_MACHINERY_2';
@@ -1581,7 +1520,6 @@ bot.on('text', async (ctx, next) => {
             return ctx.reply(macCard(doc.toObject(), false), { parse_mode: 'Markdown', ...macItemKb(doc._id) });
         }
 
-        // ══ UPDATE MACHINERY PRICE ════════════════════════
         if (action === 'UPD_MAC_PRICE') {
             const price = safePrice(text);
             if (!price) return sendStep(ctx, '⚠️ *ትክክለኛ ቁጥር ያስገቡ!*\n_ለምሳሌ: 15000_');
@@ -1592,7 +1530,6 @@ bot.on('text', async (ctx, next) => {
             return ctx.reply(macCard(doc.toObject(), false), { parse_mode: 'Markdown', ...macItemKb(doc._id) });
         }
 
-        // ══ RENT MACHINERY ════════════════════════════════
         if (action === 'RENT_MACHINERY_1' || action === 'RENT_MACHINERY_1_TEXT') {
             ctx.session.rentMachinery = { type: text };
             ctx.session.action = 'RENT_MACHINERY_2';
@@ -1651,7 +1588,7 @@ process.on('unhandledRejection', e => console.error('REJECTION:', e));
 // ──────────────────────────────────────────────────────────
 http.createServer((_, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Simple Marketplace Bot v6.3 — OK');
+    res.end('Simple Marketplace Bot v6.4 — OK');
 }).listen(PORT, '0.0.0.0', () => console.log(`🌐 HTTP :${PORT}`));
 
 if (RENDER_URL) {
@@ -1672,7 +1609,7 @@ bot.launch({
     allowedUpdates: ['message', 'callback_query'],
     dropPendingUpdates: true
 })
-.then(() => console.log('🤖 Bot v6.3 launched!'))
+.then(() => console.log('🤖 Bot v6.4 launched!'))
 .catch(err => { console.error('Launch failed:', err); process.exit(1); });
 
 process.once('SIGINT',  () => bot.stop('SIGINT'));
