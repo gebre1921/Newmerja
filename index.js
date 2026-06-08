@@ -399,57 +399,30 @@ const CEMENT_TYPES = ['ዳንጎቴ', 'ድሬ', 'ናሽናል', 'ሙገር', '�
 const STEEL_TYPES = ['ባለ 8', 'ባለ 10', 'ባለ 12', 'ባለ 14', 'ባለ 16', 'ቆርቆሮ (ሌላ)'];
 
 const MACHINERY_TYPES = [
-    'ኤክስካቫተር', 'ሚኒ ኤክስካቫተር', 'ቡልዶዘር', 'ጂሬደር', 'ሮለር',
-    'ሎደር', 'ክሬን', 'ሎ ቤድ', 'ኮንክሪት ሚክሰር', 'ፎርክሊፍት',
-    'ጀነሬተር', 'ፓምፕ', 'ቪብሬተር', 'ዌልደር', 'ኤር ኮምፕሬሰር', 'ሌላ'
+    'ኤክስካቫተር', 'ቡልዶዘር', 'ጂሬደር',
+    'ሮለር', 'ሎደር', 'ክሬን', 'ሌላ'
 ];
 
 const TRUCK_TYPES = [
-    'ሲኖትራክ',     'ፎው',          'ኢሱዙ',
-    'ዳምፕ',        'ተሳቢ',         'ካብ ትራክ',
-    'ታንከር',       'ቫኩም ታንከር',   'ፍሪጎ',
-    'ሎ ቤድ ትራክ',  'ፍላትቤድ',      'ካርጎ',
-    'ሲሎ ትራክ',    'ኮንቴይነር',     'ካምፓክተር',
-    'ቴምፖ',        'ከብት መጫኛ',    'ሌላ'
+    'ሲኖትራክ', 'FSR Isuzu', 'ተሳቢ', 'ሌላ'
 ];
 
-// ── ሙሉ የቦታ ዝርዝር (ለምዝገባ) ────────────────────────────────────
-const LOCATIONS = [
-    // ── ዋና ከተሞች ──
-    'አዲስ አበባ', 'ሀዋሳ',    'አዳማ',    'ባህርዳር',  'ጎንደር',
-    'መቀሌ',     'ጅማ',     'ድሬዳዋ',   'ደሴ',     'ሐረር',
-    // ── ሰሜን ምዕራብ / ሰሜን ──
-    'መተማ',     'ሁመራ',   'ሽሬ',     'አክሱም',   'አዲ ግራት',
-    'ወልቃይት',   'ሰቆጣ',   'ላሊበላ',   'ደብረ ብርሃን','ደብረ ማርቆስ',
-    'ደብረ ታቦር', 'ወልዲያ',  'ሸዋ ሮቢት', 'ቆቦ',     'አሸንጌ',
-    'ኮሚቦልቻ',   'ሰሜን ሸዋ',
-    // ── ምዕራብ / ደቡብ ምዕራብ ──
-    'ሻምቡ',     'ቡሬ',     'አምቦ',    'ነቀምት',   'ጊምቢ',
-    'ደምቢ ዶሎ',  'ጋምቤላ',  'ቤንሻንጉል', 'አሶሳ',
-    // ── ደቡብ ──
-    'ሻሸመኔ',   'ዝዋይ',    'ሆሳዕና',   'ቡታጅራ',  'ሞጆ',
-    'ይርጋ ጨፌ', 'ቦረና',    'ሞያሌ',    'ሐዋሳ',
-    // ── ምሥራቅ ──
-    'ዓዋሽ',    'ሚሌ',     'ጂጂጋ',    'ሌላ'
-];
-
-// ── የጉዞ መስመር ምርጫዎች (ለትራክ) ───────────────────────────────────
+// ── ዋና የጉዞ መስመሮች ────────────────────────────────────────────
 const TRUCK_ROUTES_FROM = [
-    'አ.አ',      'ሀዋሳ',    'አዳማ',    'ባህርዳር',   'ጎንደር',
-    'መቀሌ',     'ጅማ',     'ድሬዳዋ',   'ደሴ',      'ሐረር',
-    'መተማ',     'ሁመራ',   'ወልዲያ',   'ሸዋ ሮቢት', 'ሻምቡ',
-    'ቡሬ',       'ኮሚቦልቻ', 'ሞጆ',     'ሻሸመኔ',   'ዝዋይ',
-    'ሞያሌ',     'ጂጂጋ',   'ሽሬ',     'አክሱም',    'ነቀምት',
-    'ቆቦ',       'ሌላ'
+    'አ.አ', 'ሀዋሳ', 'አዳማ', 'ባህርዳር', 'ጎንደር',
+    'መቀሌ', 'ጅማ',  'ድሬዳዋ', 'ደሴ',   'ሌላ'
 ];
 
 const TRUCK_ROUTES_TO = [
-    'ሀዋሳ',    'አዳማ',    'ባህርዳር',   'ጎንደር',    'አ.አ',
-    'መቀሌ',    'ጅማ',     'ድሬዳዋ',   'ደሴ',      'ሐረር',
-    'መተማ',    'ሁመራ',   'ወልዲያ',   'ሸዋ ሮቢት', 'ሻምቡ',
-    'ቡሬ',      'ኮሚቦልቻ', 'ሞጆ',     'ሻሸመኔ',   'ዝዋይ',
-    'ሞያሌ',    'ጂጂጋ',   'ሽሬ',     'አክሱም',    'ነቀምት',
-    'ቆቦ',      'ሌላ'
+    'አ.አ', 'ሀዋሳ', 'አዳማ', 'ባህርዳር', 'ጎንደር',
+    'መቀሌ', 'ጅማ',  'ድሬዳዋ', 'ደሴ',   'ሌላ'
+];
+
+// ── ዋና ቦታዎች (ለምዝገባ) ────────────────────────────────────────
+const LOCATIONS = [
+    'አዲስ አበባ', 'ሀዋሳ',  'አዳማ',   'ባህርዳር', 'ጎንደር',
+    'መቀሌ',     'ጅማ',   'ድሬዳዋ',  'ደሴ',    'ሐረር',
+    'ወልዲያ',    'ኮሚቦልቻ','ሻሸመኔ',  'ሞጆ',    'ሌላ'
 ];
 
 // ── Inline keyboard builder ───────────────────────────────
@@ -816,7 +789,7 @@ bot.action(/^cem_price_([a-f\d]{24})$/i, async ctx => {
 });
 bot.action('cem_add', ctx => {
     ctx.session.action = 'REG_CEMENT_1'; ctx.session.cementData = {};
-    askChoice(ctx, '🧱 *አዲስ ሲሚንቶ ምዝገባ*\n\n`[1/5]` የሲሚንቶ አይነት ይምረጡ:', CEMENT_TYPES, 'CTYPE_', 3);
+    askChoice(ctx, '🧱 `[1/5]` *የሲሚንቶ አይነት ይምረጡ:*', CEMENT_TYPES, 'CTYPE_', 3);
     ctx.answerCbQuery();
 });
 
@@ -831,7 +804,7 @@ bot.action(/^stl_price_([a-f\d]{24})$/i, async ctx => {
 });
 bot.action('stl_add', ctx => {
     ctx.session.action = 'REG_STEEL_1'; ctx.session.steelData = {};
-    askChoice(ctx, '🟥 *አዲስ ብረት ምዝገባ*\n\n`[1/4]` የብረት አይነት ይምረጡ:', STEEL_TYPES, 'STYPE_', 3);
+    askChoice(ctx, '🟥 `[1/4]` *የብረት አይነት ይምረጡ:*', STEEL_TYPES, 'STYPE_', 3);
     ctx.answerCbQuery();
 });
 
@@ -846,7 +819,7 @@ bot.action(/^mac_price_([a-f\d]{24})$/i, async ctx => {
 });
 bot.action('mac_add', ctx => {
     ctx.session.action = 'REG_MACHINERY_1'; ctx.session.machineryData = {};
-    askChoice(ctx, '🔹 *አዲስ ማሽነሪ ምዝገባ*\n\n`[1/4]` የማሽነሪ አይነት ይምረጡ:', MACHINERY_TYPES, 'MTYPE_', 2);
+    askChoice(ctx, '🔹 `[1/4]` *የማሽነሪ አይነት ይምረጡ:*', MACHINERY_TYPES, 'MTYPE_', 2);
     ctx.answerCbQuery();
 });
 
@@ -861,7 +834,7 @@ bot.action(/^trk_route_([a-f\d]{24})$/i, async ctx => {
 });
 bot.action('trk_add', ctx => {
     ctx.session.action = 'REG_TRUCK_1'; ctx.session.truckData = {};
-    askChoice(ctx, '🚚 *አዲስ ትራክ ምዝገባ*\n\n`[1/4]` የመኪናውን አይነት ይምረጡ:', TRUCK_TYPES, 'TKTYPE_', 3);
+    askChoice(ctx, '🚚 `[1/4]` *የመኪናውን አይነት ይምረጡ:*', TRUCK_TYPES, 'TKTYPE_', 2);
     ctx.answerCbQuery();
 });
 
@@ -1079,19 +1052,19 @@ async function openDashboard(ctx, Model, cardFn, kb, emptyAction, emptySession, 
 
 bot.hears('🧱 ሲሚንቶ ለመሸጥ', ctx => openDashboard(
     ctx, CementSeller, cementCard, cementItemKb, 'REG_CEMENT_1', 'cementData', 'ሲሚንቶ ምዝገባ',
-    c => askChoice(c, '🧱 *ሲሚንቶ ምዝገባ*\n\n`[1/5]` የሲሚንቶ አይነት ይምረጡ:', CEMENT_TYPES, 'CTYPE_', 3)
+    c => askChoice(c, '🧱 `[1/5]` *የሲሚንቶ አይነት ይምረጡ:*', CEMENT_TYPES, 'CTYPE_', 3)
 ));
 bot.hears('🟥 ብረት ለመሸጥ', ctx => openDashboard(
     ctx, SteelSeller, steelCard, steelItemKb, 'REG_STEEL_1', 'steelData', 'ብረት ምዝገባ',
-    c => askChoice(c, '🟥 *ብረት ምዝገባ*\n\n`[1/4]` የብረት አይነት ይምረጡ:', STEEL_TYPES, 'STYPE_', 3)
+    c => askChoice(c, '🟥 `[1/4]` *የብረት አይነት ይምረጡ:*', STEEL_TYPES, 'STYPE_', 3)
 ));
 bot.hears('🔹 ማሽነሪ ለማከራየት', ctx => openDashboard(
     ctx, MachineryLeasor, macCard, macItemKb, 'REG_MACHINERY_1', 'machineryData', 'ማሽነሪ ምዝገባ',
-    c => askChoice(c, '🔹 *ማሽነሪ ምዝገባ*\n\n`[1/4]` የማሽነሪ አይነት ይምረጡ:', MACHINERY_TYPES, 'MTYPE_', 2)
+    c => askChoice(c, '🔹 `[1/4]` *የማሽነሪ አይነት ይምረጡ:*', MACHINERY_TYPES, 'MTYPE_', 2)
 ));
 bot.hears('🚚 መኪና ለማከራየት', ctx => openDashboard(
     ctx, TruckLeasor, truckCard, truckItemKb, 'REG_TRUCK_1', 'truckData', 'ትራክ ምዝገባ',
-    c => askChoice(c, '🚚 *ትራክ ምዝገባ*\n\n`[1/4]` የመኪናውን አይነት ይምረጡ:', TRUCK_TYPES, 'TKTYPE_', 3)
+    c => askChoice(c, '🚚 `[1/4]` *የመኪናውን አይነት ይምረጡ:*', TRUCK_TYPES, 'TKTYPE_', 2)
 ));
 
 // ──────────────────────────────────────────────────────────
@@ -1099,19 +1072,19 @@ bot.hears('🚚 መኪና ለማከራየት', ctx => openDashboard(
 // ──────────────────────────────────────────────────────────
 bot.hears('🧱 ሲሚንቶ ለመግዛት', ctx => {
     ctx.session.action = 'BUY_CEMENT_1'; ctx.session.buyCement = {};
-    askChoice(ctx, '🔍 *ሲሚንቶ ፍለጋ*\n\n`[1/3]` ምን አይነት ሲሚንቶ ይፈልጋሉ?', CEMENT_TYPES, 'BCEM_', 3);
+    askChoice(ctx, '🧱 `[1/3]` *ምን አይነት ሲሚንቶ ይፈልጋሉ?*', CEMENT_TYPES, 'BCEM_', 3);
 });
 bot.hears('🟥 ብረት ለመግዛት', ctx => {
     ctx.session.action = 'BUY_STEEL_1'; ctx.session.buySteel = {};
-    askChoice(ctx, '🔍 *ብረት ፍለጋ*\n\n`[1/3]` ምን አይነት ብረት ይፈልጋሉ?', STEEL_TYPES, 'BSTL_', 3);
+    askChoice(ctx, '🟥 `[1/3]` *ምን አይነት ብረት ይፈልጋሉ?*', STEEL_TYPES, 'BSTL_', 3);
 });
 bot.hears('🔹 ማሽነሪ ለመከራየት', ctx => {
     ctx.session.action = 'RENT_MACHINERY_1'; ctx.session.rentMachinery = {};
-    askChoice(ctx, '🔍 *ማሽነሪ ፍለጋ*\n\n`[1/3]` ምን አይነት ማሽነሪ ይፈልጋሉ?', MACHINERY_TYPES, 'BMAC_', 2);
+    askChoice(ctx, '🔹 `[1/3]` *ምን አይነት ማሽነሪ ይፈልጋሉ?*', MACHINERY_TYPES, 'BMAC_', 2);
 });
 bot.hears('🚚 መኪና ለመከራየት', ctx => {
     ctx.session.action = 'RENT_TRUCK_1'; ctx.session.rentTruck = {};
-    askChoice(ctx, '🔍 *ትራክ ፍለጋ*\n\n`[1/3]` ምን አይነት መኪና ይፈልጋሉ?', TRUCK_TYPES, 'BTRK_', 3);
+    askChoice(ctx, '🚚 `[1/3]` *ምን አይነት መኪና ይፈልጋሉ?*', TRUCK_TYPES, 'BTRK_', 2);
 });
 
 // ──────────────────────────────────────────────────────────
