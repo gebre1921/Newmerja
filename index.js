@@ -1,7 +1,7 @@
 'use strict';
 
 // ╔══════════════════════════════════════════════════════════════╗
-// ║          Simple Marketplace Bot  v6.5  ✨                   ║
+// ║          Simple Marketplace Bot  v7.0  ✨                   ║
 // ║      ሲሚንቶ  ·  ብረት  ·  ማሽነሪ  ·  ትራክ                        ║
 // ╚══════════════════════════════════════════════════════════════╝
 
@@ -455,7 +455,9 @@ const TRUCK_TYPES = [
 
 const TRUCK_TRIP_MODE = ['🏙️ አዲስ አበባ ከተማ ውስጥ', '🛣️ ከአንድ ከተማ ወደ ሌላ ከተማ'];
 
-// ── አዲስ አበባ ሰፈሮች (5) + ሌላ
+// ══════════════════════════════════════════════════════════
+// ✅ CHANGE 1: አዲስ አበባ ሰፈሮች — 5 ዋና ሰፈሮች + "ሌላ ሰፈር" ብቻ
+// ══════════════════════════════════════════════════════════
 const AA_NEIGHBORHOODS = [
     'መርካቶ', 'ቦሌ', 'ፒያሳ', 'ሜክሲኮ', 'ካዛንቺስ', 'ሌላ ሰፈር'
 ];
@@ -625,7 +627,7 @@ const truckItemKb   = id => Markup.inlineKeyboard([
 ]);
 
 // ──────────────────────────────────────────────────────────
-// MAIN KEYBOARD & HELPER FUNCTIONS
+// MAIN KEYBOARD  (defined here so welcomeText block can use it)
 // ──────────────────────────────────────────────────────────
 const mainKb = Markup.keyboard([
     ['🧱 ሲሚንቶ ለመሸጥ',    '🧱 ሲሚንቶ ለመግዛት'],
@@ -635,39 +637,16 @@ const mainKb = Markup.keyboard([
     ['📞 አግኙን']
 ]).resize();
 
-async function deletePrev(ctx) {
-    const msgId = ctx.session?.lastMsgId;
-    if (msgId) {
-        await ctx.telegram.deleteMessage(ctx.chat.id, msgId).catch(() => {});
-        ctx.session.lastMsgId = null;
-    }
-}
-
-async function sendStep(ctx, text, extra = {}) {
-    await deletePrev(ctx);
-    const options = { parse_mode: 'Markdown', ...cancelKb, ...extra };
-    const sent = await ctx.reply(text, options);
-    ctx.session.lastMsgId = sent.message_id;
-    return sent;
-}
-
-async function askChoice(ctx, prompt, options, prefix, cols = 3, backAction = 'go_home') {
-    await deletePrev(ctx);
-    const sent = await ctx.reply(prompt, { parse_mode: 'Markdown', ...choiceKbWithBack(options, prefix, cols, backAction) });
-    ctx.session.lastMsgId = sent.message_id;
-    return sent;
-}
-
-function isValidObjectId(id) {
-    return /^[a-f\d]{24}$/i.test(id);
-}
-
-// ── ፕሮፌሽናል የመግቢያ ጽሁፍ — "ኪራይ" ተብሎ ተስተካክሏል ──
+// ══════════════════════════════════════════════════════════
+// ✅ CHANGE 2: አዲስ የተሻሻለ Welcome Text
+// ══════════════════════════════════════════════════════════
 const welcomeText = (name) =>
     `👋 *ሰላም ${esc(name)}!*\n\n` +
-    `✨ *እንኳን ወደ መረጃ Bot በደህና መጡ!* ✨\n\n` +
-    `🏗️ ሲሚንቶ፣ ብረት፣ ማሽነሪ እና መኪና በተመጣጣኝ ዋጋ ለመሸጥ፣ ለመግዛት እና ለመከራየት የቀረበ ዘመናዊ መድረክ።\n\n` +
-    `❓ *ምን ይፈልጋሉ?*\n_ከዚህ ታች ካሉት ቁልፎች የሚፈልጉትን ይምረጡ_`;
+    `✨ *እንኳን ወደ መረጃ የንግድ ማዕከል በደህና መጡ!* ✨\n\n` +
+    `🏗️ ሲሚንቶ እና ብረት በተመጣጣኝ ዋጋ ለመሸጥ፣ ለመግዛት እንዲሁም ` +
+    `ማሽነሪ እና የጭነት መኪናዎች ለመከራየትና ለማከራየት የቀረበ ዘመናዊ መድረክ።\n\n` +
+    `❓ *ምን ይፈልጋሉ?*\n` +
+    `_ከዚህ ታች ካሉት ቁልፎች የሚፈልጉትን ይምረጡ_`;
 
 // ──────────────────────────────────────────────────────────
 // START
@@ -1204,6 +1183,36 @@ bot.hears('🚚 መኪና ለመከራየት', async ctx => {
 });
 
 // ──────────────────────────────────────────────────────────
+// UTILITIES — deletePrev / sendStep / askChoice
+// ──────────────────────────────────────────────────────────
+async function deletePrev(ctx) {
+    const msgId = ctx.session?.lastMsgId;
+    if (msgId) {
+        await ctx.telegram.deleteMessage(ctx.chat.id, msgId).catch(() => {});
+        ctx.session.lastMsgId = null;
+    }
+}
+
+async function sendStep(ctx, text, extra = {}) {
+    await deletePrev(ctx);
+    const options = { parse_mode: 'Markdown', ...cancelKb, ...extra };
+    const sent = await ctx.reply(text, options);
+    ctx.session.lastMsgId = sent.message_id;
+    return sent;
+}
+
+async function askChoice(ctx, prompt, options, prefix, cols = 3, backAction = 'go_home') {
+    await deletePrev(ctx);
+    const sent = await ctx.reply(prompt, { parse_mode: 'Markdown', ...choiceKbWithBack(options, prefix, cols, backAction) });
+    ctx.session.lastMsgId = sent.message_id;
+    return sent;
+}
+
+function isValidObjectId(id) {
+    return /^[a-f\d]{24}$/i.test(id);
+}
+
+// ──────────────────────────────────────────────────────────
 // TEXT STATE MACHINE
 // ──────────────────────────────────────────────────────────
 bot.on('text', async (ctx, next) => {
@@ -1268,11 +1277,20 @@ bot.on('text', async (ctx, next) => {
             if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 650 ወይም 1200');
             const doc = await CementSeller.create({ ...ctx.session.cementData, userId: uid, price, status: 'active' });
             ctx.session.action = null; ctx.session.cementData = {}; ctx.session.lastMsgId = null;
+            // ══ CHANGE 3: ቆንጆ የምዝገባ ማረጋገጫ ══
             await ctx.reply(
-                `✅ *ምዝገባ ተሳክቷል!*\n\nሲሚንቶዎ ለገዥዎች ይታያል። ከታች ሁኔታ ቀይር።`,
-                { parse_mode: 'Markdown' }
+                `✅ *ምዝገባ ተሳክቷል!*\n\n` +
+                `━━━━━━━━━━━━━━━━━━━━━\n` +
+                `🧱 *${esc(doc.companyName || doc.type)}*\n` +
+                `▸ አይነት  ፦ ${esc(doc.type)}\n` +
+                `▸ 📍 ቦታ  ፦ ${esc(doc.location)}\n` +
+                `▸ 📞 ስልክ ፦ \`${esc(doc.phone)}\`\n` +
+                `▸ 💰 ዋጋ  ፦ *${fmt(doc.price)} ብር/ኩንታል*\n` +
+                `━━━━━━━━━━━━━━━━━━━━━\n` +
+                `_ሲሚንቶዎ ለገዥዎች ይታያል። ሁኔታ ለመቀየር ከታች ቁልፎቹን ይጠቀሙ።_`,
+                { parse_mode: 'Markdown', ...cementItemKb(doc._id) }
             );
-            return ctx.reply(cementCard(doc.toObject(), false), { parse_mode: 'Markdown', ...cementItemKb(doc._id) });
+            return;
         }
 
         // ══ UPDATE CEMENT PRICE ════════════════════════════
@@ -1341,11 +1359,19 @@ bot.on('text', async (ctx, next) => {
             ctx.session.truckData.phone = safePhone(text);
             const doc = await TruckLeasor.create({ ...ctx.session.truckData, userId: uid, status: 'active' });
             ctx.session.action = null; ctx.session.truckData = {}; ctx.session.lastMsgId = null;
+            // ══ CHANGE 3: ቆንጆ የምዝገባ ማረጋገጫ ══
             await ctx.reply(
-                `✅ *ምዝገባ ተሳክቷል!*\n\nትራኩ ለፈላጊዎች ይታያል። ከታች ሁኔታ ቀይር።`,
-                { parse_mode: 'Markdown' }
+                `✅ *ምዝገባ ተሳክቷል!*\n\n` +
+                `━━━━━━━━━━━━━━━━━━━━━\n` +
+                `🚚 *${esc(doc.type)}*\n` +
+                `▸ 🚗 ታርጋ  ፦ ${esc(doc.plate)}\n` +
+                `▸ 🛣️ መስመር ፦ ${esc(doc.route)}\n` +
+                `▸ 📞 ስልክ  ፦ \`${esc(doc.phone)}\`\n` +
+                `━━━━━━━━━━━━━━━━━━━━━\n` +
+                `_ትራኩ ለፈላጊዎች ይታያል። ሁኔታ ለመቀየር ከታች ቁልፎቹን ይጠቀሙ።_`,
+                { parse_mode: 'Markdown', ...truckItemKb(doc._id) }
             );
-            return ctx.reply(truckCard(doc.toObject(), false), { parse_mode: 'Markdown', ...truckItemKb(doc._id) });
+            return;
         }
 
         // ══ UPDATE TRUCK ROUTE ════════════════════════════
@@ -1436,11 +1462,19 @@ bot.on('text', async (ctx, next) => {
             if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 5000 ወይም 12000');
             const doc = await SteelSeller.create({ ...ctx.session.steelData, userId: uid, price, status: 'active' });
             ctx.session.action = null; ctx.session.steelData = {}; ctx.session.lastMsgId = null;
+            // ══ CHANGE 3: ቆንጆ የምዝገባ ማረጋገጫ ══
             await ctx.reply(
-                `✅ *ምዝገባ ተሳክቷል!*\n\nብረቱ ለፈላጊዎች ይታያል። ከታች ሁኔታ ቀይር።`,
-                { parse_mode: 'Markdown' }
+                `✅ *ምዝገባ ተሳክቷል!*\n\n` +
+                `━━━━━━━━━━━━━━━━━━━━━\n` +
+                `🟥 *${esc(doc.type)}*\n` +
+                `▸ 📍 አድራሻ ፦ ${esc(doc.address)}\n` +
+                `▸ 📞 ስልክ  ፦ \`${esc(doc.phone)}\`\n` +
+                `▸ 💰 ዋጋ   ፦ *${fmt(doc.price)} ብር*\n` +
+                `━━━━━━━━━━━━━━━━━━━━━\n` +
+                `_ብረቱ ለፈላጊዎች ይታያል። ሁኔታ ለመቀየር ከታች ቁልፎቹን ይጠቀሙ።_`,
+                { parse_mode: 'Markdown', ...steelItemKb(doc._id) }
             );
-            return ctx.reply(steelCard(doc.toObject(), false), { parse_mode: 'Markdown', ...steelItemKb(doc._id) });
+            return;
         }
 
         // ══ UPDATE STEEL PRICE ════════════════════════════
@@ -1507,11 +1541,19 @@ bot.on('text', async (ctx, next) => {
             if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 15000');
             const doc = await MachineryLeasor.create({ ...ctx.session.machineryData, userId: uid, price, status: 'active' });
             ctx.session.action = null; ctx.session.machineryData = {}; ctx.session.lastMsgId = null;
+            // ══ CHANGE 3: ቆንጆ የምዝገባ ማረጋገጫ ══
             await ctx.reply(
-                `✅ *ምዝገባ ተሳክቷል!*\n\nማሽነሪዎ ለፈላጊዎች ይታያል። ከታች ሁኔታ ቀይር።`,
-                { parse_mode: 'Markdown' }
+                `✅ *ምዝገባ ተሳክቷል!*\n\n` +
+                `━━━━━━━━━━━━━━━━━━━━━\n` +
+                `🔹 *${esc(doc.type)}*\n` +
+                `▸ 📍 አድራሻ ፦ ${esc(doc.address)}\n` +
+                `▸ 📞 ስልክ  ፦ \`${esc(doc.phone)}\`\n` +
+                `▸ 💰 ኪራይ  ፦ *${fmt(doc.price)} ብር*\n` +
+                `━━━━━━━━━━━━━━━━━━━━━\n` +
+                `_ማሽነሪዎ ለፈላጊዎች ይታያል። ሁኔታ ለመቀየር ከታች ቁልፎቹን ይጠቀሙ።_`,
+                { parse_mode: 'Markdown', ...macItemKb(doc._id) }
             );
-            return ctx.reply(macCard(doc.toObject(), false), { parse_mode: 'Markdown', ...macItemKb(doc._id) });
+            return;
         }
 
         // ══ UPDATE MACHINERY PRICE ════════════════════════
@@ -1584,7 +1626,7 @@ process.on('unhandledRejection', e => console.error('REJECTION:', e));
 // ──────────────────────────────────────────────────────────
 http.createServer((_, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Simple Marketplace Bot v6.5 — OK');
+    res.end('Simple Marketplace Bot v7.0 — OK');
 }).listen(PORT, '0.0.0.0', () => console.log(`🌐 HTTP :${PORT}`));
 
 if (RENDER_URL) {
@@ -1605,7 +1647,7 @@ bot.launch({
     allowedUpdates: ['message', 'callback_query'],
     dropPendingUpdates: true
 })
-.then(() => console.log('🤖 Bot v6.5 launched!'))
+.then(() => console.log('🤖 Bot v7.0 launched!'))
 .catch(err => { console.error('Launch failed:', err); process.exit(1); });
 
 process.once('SIGINT',  () => bot.stop('SIGINT'));
