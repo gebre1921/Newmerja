@@ -361,8 +361,12 @@ for (let i = 0; i < SYNONYM_GROUPS.length; i++)
 
 function editDistance(a, b) {
     const m = a.length, n = b.length;
-    const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
-    for (let j = 0; j <= n; j++) dp[j] = j;
+    const dp = Array.from({ length: m + 1 }, (_, i) => {
+        const row = new Array(n + 1).fill(0);
+        row[0] = i;
+        return row;
+    });
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
     for (let i = 1; i <= m; i++)
         for (let j = 1; j <= n; j++)
             dp[i][j] = a[i-1] === b[j-1]
