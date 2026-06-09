@@ -932,7 +932,7 @@ bot.action(/^cem_price_([a-f\d]{24})$/i, async ctx => {
     const id = getObjId(ctx.match);
     if (!isValidObjectId(id)) return;
     ctx.session.action = 'UPD_CEM_PRICE'; ctx.session.targetItemId = id;
-    await sendStep(ctx, '💰 *አዲሱን ዋጋ ያስገቡ:*\nበኩንታል ቁጥር ብቻ — ለምሳሌ: 1200 ወይም 1500');
+    await sendStep(ctx, '💰 *አዲሱን ዋጋ ፅፈው ይላኩ:*\nበኩንታል ቁጥር ብቻ — ለምሳሌ: 1200 ወይም 1500');
 });
 bot.action('cem_add', async ctx => {
     ctx.answerCbQuery().catch(() => {});
@@ -945,7 +945,7 @@ bot.action(/^stl_price_([a-f\d]{24})$/i, async ctx => {
     const id = getObjId(ctx.match);
     if (!isValidObjectId(id)) return;
     ctx.session.action = 'UPD_STL_PRICE'; ctx.session.targetItemId = id;
-    await sendStep(ctx, '💰 *አዲሱን ዋጋ ፐር ኪሎ ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 55 ወይም 70');
+    await sendStep(ctx, '💰 *አዲሱን ዋጋ ፐር ኪሎ ፅፈው ይላኩ:*\nቁጥር ብቻ ብር — ለምሳሌ: 55 ወይም 70');
 });
 bot.action('stl_add', async ctx => {
     ctx.answerCbQuery().catch(() => {});
@@ -958,7 +958,7 @@ bot.action(/^mac_price_([a-f\d]{24})$/i, async ctx => {
     const id = getObjId(ctx.match);
     if (!isValidObjectId(id)) return;
     ctx.session.action = 'UPD_MAC_PRICE'; ctx.session.targetItemId = id;
-    await sendStep(ctx, '💰 *አዲሱን ኪራይ ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 15000');
+    await sendStep(ctx, '💰 *አዲሱን ኪራይ ፅፈው ይላኩ:*\nቁጥር ብቻ ብር — ለምሳሌ: 15000');
 });
 bot.action('mac_add', async ctx => {
     ctx.answerCbQuery().catch(() => {});
@@ -972,7 +972,7 @@ bot.action('MACUNIT_day', async ctx => {
     await deletePrev(ctx);
     ctx.session.machineryData.rentUnit = 'በቀን';
     ctx.session.action = 'REG_MACHINERY_4';
-    const sent = await ctx.reply('`[5/5]` 💰 *ኪራይ ዋጋ በቀን ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 15000', { parse_mode: 'Markdown', ...cancelKb });
+    const sent = await ctx.reply('`[5/5]` 💰 *ኪራይ ዋጋ በቀን ፅፈው ይላኩ:*\nቁጥር ብቻ ብር — ለምሳሌ: 15000', { parse_mode: 'Markdown', ...cancelKb });
     ctx.session.lastMsgId = sent.message_id;
 });
 
@@ -981,7 +981,7 @@ bot.action('MACUNIT_month', async ctx => {
     await deletePrev(ctx);
     ctx.session.machineryData.rentUnit = 'በወር';
     ctx.session.action = 'REG_MACHINERY_4';
-    const sent = await ctx.reply('`[5/5]` 💰 *ኪራይ ዋጋ በወር ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 350000', { parse_mode: 'Markdown', ...cancelKb });
+    const sent = await ctx.reply('`[5/5]` 💰 *ኪራይ ዋጋ በወር ፅፈው ይላኩ:*\nቁጥር ብቻ ብር — ለምሳሌ: 350000', { parse_mode: 'Markdown', ...cancelKb });
     ctx.session.lastMsgId = sent.message_id;
 });
 
@@ -990,7 +990,7 @@ bot.action(/^trk_route_([a-f\d]{24})$/i, async ctx => {
     const id = getObjId(ctx.match);
     if (!isValidObjectId(id)) return;
     ctx.session.action = 'UPD_TRK_ROUTE'; ctx.session.targetItemId = id;
-    await sendStep(ctx, '🗺️ *አዲሱን የጉዞ መስመር ያስገቡ:*\nለምሳሌ: ከ አ.አ ወደ ሀዋሳ ወይም በከተማ ውስጥ');
+    await sendStep(ctx, '🗺️ *አዲሱን የጉዞ መስመር ፅፈው ይላኩ:*\nለምሳሌ: ከ አ.አ ወደ ሀዋሳ ወይም በከተማ ውስጥ');
 });
 bot.action('trk_add', async ctx => {
     ctx.answerCbQuery().catch(() => {});
@@ -1011,7 +1011,7 @@ bot.action('REGTRKMODE_CITY', async ctx => {
     ctx.answerCbQuery().catch(() => {});
     await deletePrev(ctx);
     ctx.session.action = 'REG_TRUCK_3';
-    const sent = await ctx.reply('`[3/4]` 🛣️ *የጉዞ መስመር ያስገቡ:*\nለምሳሌ: ከ አ.አ ወደ ሀዋሳ', { parse_mode: 'Markdown', ...cancelKb });
+    const sent = await ctx.reply('`[3/4]` 🛣️ *የጉዞ መስመር ፅፈው ይላኩ:*\nለምሳሌ: ከ አ.አ ወደ ሀዋሳ', { parse_mode: 'Markdown', ...cancelKb });
     ctx.session.lastMsgId = sent.message_id;
 });
 
@@ -1024,7 +1024,7 @@ bot.action(/^CTYPE_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ሌላ') {
         ctx.session.action = 'REG_CEMENT_1_TEXT';
-        await sendStep(ctx, '🧱 *የሲሚንቶ አይነት ጽፈው ያስገቡ:*\nለምሳሌ: ሙገር ወይም ደርባ');
+        await sendStep(ctx, '🧱 *የሲሚንቶ አይነት ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ሙገር ወይም ደርባ');
     } else {
         ctx.session.cementData = { type: val };
         ctx.session.action = 'REG_CEMENT_2';
@@ -1038,11 +1038,11 @@ bot.action(/^SLOC_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ሌላ') {
         ctx.session.action = 'REG_CEMENT_2_TEXT';
-        await sendStep(ctx, '📍 *ቦታ ጽፈው ያስገቡ:*\nለምሳሌ: ደብረ ብርሃን ወይም ሞጆ');
+        await sendStep(ctx, '📍 *ቦታ ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ደብረ ብርሃን ወይም ሞጆ');
     } else {
         ctx.session.cementData.location = val;
         ctx.session.action = 'REG_CEMENT_3';
-        await sendStep(ctx, '`[3/5]` 🏭 *የድርጅቱን ስም ያስገቡ:*\nለምሳሌ: ሀበሻ ንግድ ቤት');
+        await sendStep(ctx, '`[3/5]` 🏭 *የድርጅቱን ስም ፅፈው ይላኩ:*\nለምሳሌ: ሀበሻ ንግድ ቤት');
     }
 });
 
@@ -1052,11 +1052,11 @@ bot.action(/^STYPE_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ቆርቆሮ (ሌላ)' || val === 'ሌላ') {
         ctx.session.action = 'REG_STEEL_1_TEXT';
-        await sendStep(ctx, '🟥 *የብረት አይነት ጽፈው ያስገቡ:*\nለምሳሌ: ባለ 20 ወይም ቆርቆሮ');
+        await sendStep(ctx, '🟥 *የብረት አይነት ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ባለ 20 ወይም ቆርቆሮ');
     } else {
         ctx.session.steelData = { type: val };
         ctx.session.action = 'REG_STEEL_2';
-        await sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ያስገቡ:*\nብረቱ የሚሸጥበት ቦታ — ለምሳሌ: ቦሌ፣ አዲስ አበባ');
+        await sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ፅፈው ይላኩ:*\nብረቱ የሚሸጥበት ቦታ — ለምሳሌ: ቦሌ፣ አዲስ አበባ');
     }
 });
 
@@ -1066,11 +1066,11 @@ bot.action(/^MTYPE_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ሌላ') {
         ctx.session.action = 'REG_MACHINERY_1_TEXT';
-        await sendStep(ctx, '🔹 *የማሽነሪ አይነት ጽፈው ያስገቡ:*\nለምሳሌ: ኤክስካቫተር ወይም ሮለር');
+        await sendStep(ctx, '🔹 *የማሽነሪ አይነት ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ኤክስካቫተር ወይም ሮለር');
     } else {
         ctx.session.machineryData = { type: val };
         ctx.session.action = 'REG_MACHINERY_2';
-        await sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ያስገቡ:*\nማሽነሪው የሚኖርበት ቦታ — ለምሳሌ: አዳማ');
+        await sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ፅፈው ይላኩ:*\nማሽነሪው የሚኖርበት ቦታ — ለምሳሌ: አዳማ');
     }
 });
 
@@ -1080,11 +1080,11 @@ bot.action(/^TKTYPE_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ሌላ') {
         ctx.session.action = 'REG_TRUCK_1_TEXT';
-        await sendStep(ctx, '🚚 *የመኪናውን አይነት ጽፈው ያስገቡ:*\nለምሳሌ: ሲኖትራክ 10 ጭነት');
+        await sendStep(ctx, '🚚 *የመኪናውን አይነት ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ሲኖትራክ 10 ጭነት');
     } else {
         ctx.session.truckData = { type: val };
         ctx.session.action = 'REG_TRUCK_2';
-        await sendStep(ctx, '`[2/4]` 🚗 *የመኪናው ታርጋ ቁጥር ያስገቡ:*\nለምሳሌ: AA-12345');
+        await sendStep(ctx, '`[2/4]` 🚗 *የመኪናው ታርጋ ቁጥር ፅፈው ይላኩ:*\nለምሳሌ: AA-12345');
     }
 });
 
@@ -1097,7 +1097,7 @@ bot.action(/^BCEM_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ሌላ') {
         ctx.session.action = 'BUY_CEMENT_1_TEXT';
-        await sendStep(ctx, '🧱 *ምን አይነት ሲሚንቶ ይፈልጋሉ? ጽፈው ያስገቡ:*\nለምሳሌ: ሙገር ወይም ናሽናል');
+        await sendStep(ctx, '🧱 *ምን አይነት ሲሚንቶ ይፈልጋሉ? ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ሙገር ወይም ናሽናል');
     } else {
         ctx.session.buyCement = { type: val };
         ctx.session.action = 'BUY_CEMENT_2';
@@ -1111,7 +1111,7 @@ bot.action(/^BCEMLOC_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ሌላ') {
         ctx.session.action = 'BUY_CEMENT_2_TEXT';
-        await sendStep(ctx, '📍 *ሲሚንቶ ከየትኛው ከተማ ነው? ጽፈው ያስገቡ:*\nለምሳሌ: ደብረ ብርሃን ወይም ሞጆ');
+        await sendStep(ctx, '📍 *ሲሚንቶ ከየትኛው ከተማ ነው? ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ደብረ ብርሃን ወይም ሞጆ');
     } else {
         ctx.session.buyCement.location = val;
         ctx.session.action = 'BUY_CEMENT_3';
@@ -1125,7 +1125,7 @@ bot.action(/^BSTL_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ቆርቆሮ (ሌላ)' || val === 'ሌላ') {
         ctx.session.action = 'BUY_STEEL_1_TEXT';
-        await sendStep(ctx, '🟥 *ምን አይነት ብረት ይፈልጋሉ? ጽፈው ያስገቡ:*\nለምሳሌ: ባለ 20 ወይም ቆርቆሮ');
+        await sendStep(ctx, '🟥 *ምን አይነት ብረት ይፈልጋሉ? ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ባለ 20 ወይም ቆርቆሮ');
     } else {
         ctx.session.buySteel = { type: val };
         ctx.session.action = 'BUY_STEEL_2';
@@ -1139,7 +1139,7 @@ bot.action(/^BMAC_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ሌላ') {
         ctx.session.action = 'RENT_MACHINERY_1_TEXT';
-        await sendStep(ctx, '🔹 *ምን አይነት ማሽነሪ ይፈልጋሉ? ጽፈው ያስገቡ:*\nለምሳሌ: ኤክስካቫተር ወይም ቡልዶዘር');
+        await sendStep(ctx, '🔹 *ምን አይነት ማሽነሪ ይፈልጋሉ? ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ኤክስካቫተር ወይም ቡልዶዘር');
     } else {
         ctx.session.rentMachinery = { type: val };
         ctx.session.action = 'RENT_MACHINERY_2';
@@ -1153,7 +1153,7 @@ bot.action(/^BTRK_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ሌላ') {
         ctx.session.action = 'RENT_TRUCK_1_TEXT';
-        await sendStep(ctx, '🚚 *ምን አይነት መኪና ይፈልጋሉ? ጽፈው ያስገቡ:*\nለምሳሌ: ሲኖትራክ ወይም ዳምፕ');
+        await sendStep(ctx, '🚚 *ምን አይነት መኪና ይፈልጋሉ? ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ሲኖትራክ ወይም ዳምፕ');
     } else {
         ctx.session.rentTruck = { type: val };
         ctx.session.action = 'RENT_TRUCK_TRIP_MODE';
@@ -1181,7 +1181,7 @@ bot.action(/^BTRKAA_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ሌላ ሰፈር') {
         ctx.session.action = 'RENT_TRUCK_AA_TEXT';
-        await sendStep(ctx, '🏙️ *የሰፈሩን ስም ጽፈው ያስገቡ:*\nለምሳሌ: ላፍቶ ወይም ኮልፌ');
+        await sendStep(ctx, '🏙️ *የሰፈሩን ስም ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ላፍቶ ወይም ኮልፌ');
     } else {
         ctx.session.rentTruck.route = `አዲስ አበባ — ${val}`;
         ctx.session.action = 'RENT_TRUCK_3';
@@ -1211,7 +1211,7 @@ bot.action(/^BTRKLOC_(.+)$/, async ctx => {
     if (ctx.session.action === 'RENT_TRUCK_2') {
         if (raw === 'ሌላ') {
             ctx.session.action = 'RENT_TRUCK_2_FROM_TEXT';
-            await sendStep(ctx, '🛣️ *ከየት? (መነሻ ቦታ) ጽፈው ያስገቡ:*\nለምሳሌ: ባህርዳር ወይም ጎንደር');
+            await sendStep(ctx, '🛣️ *ከየት? (መነሻ ቦታ) ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: ባህርዳር ወይም ጎንደር');
         } else {
             ctx.session.rentTruck.routeFrom = raw;
             ctx.session.action = 'RENT_TRUCK_2_TO';
@@ -1226,7 +1226,7 @@ bot.action(/^BTRKTO_(.+)$/, async ctx => {
     await deletePrev(ctx);
     if (val === 'ሌላ') {
         ctx.session.action = 'RENT_TRUCK_2_TO_TEXT';
-        await sendStep(ctx, '🛣️ *ወዴት? (መድረሻ ቦታ) ጽፈው ያስገቡ:*\nለምሳሌ: አዲስ አበባ ወይም ሀዋሳ');
+        await sendStep(ctx, '🛣️ *ወዴት? (መድረሻ ቦታ) ጽፈው ፅፈው ይላኩ:*\nለምሳሌ: አዲስ አበባ ወይም ሀዋሳ');
     } else {
         ctx.session.rentTruck.route = `ከ ${ctx.session.rentTruck.routeFrom || ''} ወደ ${val}`;
         ctx.session.action = 'RENT_TRUCK_3';
@@ -1334,7 +1334,7 @@ bot.on('text', async (ctx, next) => {
         // ══ UPDATE PRICE / ROUTE ══════════════════════════
         if (action === 'UPD_CEM_PRICE') {
             const price = safePrice(text);
-            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 650 ወይም 1200');
+            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ፅፈው ይላኩ!\nለምሳሌ: 650 ወይም 1200');
             const id = ctx.session.targetItemId;
             const doc = await CementSeller.findOneAndUpdate(
                 { _id: id, userId: uid }, { price }, { new: true }
@@ -1347,7 +1347,7 @@ bot.on('text', async (ctx, next) => {
 
         if (action === 'UPD_STL_PRICE') {
             const price = safePrice(text);
-            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 5000');
+            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ፅፈው ይላኩ!\nለምሳሌ: 5000');
             const id = ctx.session.targetItemId;
             const doc = await SteelSeller.findOneAndUpdate(
                 { _id: id, userId: uid }, { price }, { new: true }
@@ -1360,7 +1360,7 @@ bot.on('text', async (ctx, next) => {
 
         if (action === 'UPD_MAC_PRICE') {
             const price = safePrice(text);
-            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 15000');
+            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ፅፈው ይላኩ!\nለምሳሌ: 15000');
             const id = ctx.session.targetItemId;
             const doc = await MachineryLeasor.findOneAndUpdate(
                 { _id: id, userId: uid }, { price }, { new: true }
@@ -1391,7 +1391,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_CEMENT_2' || action === 'REG_CEMENT_2_TEXT') {
             ctx.session.cementData.location = text;
             ctx.session.action = 'REG_CEMENT_3';
-            return sendStep(ctx, '`[3/5]` 🏭 *የድርጅቱን ስም ያስገቡ:*\nለምሳሌ: ሀበሻ ንግድ ቤት');
+            return sendStep(ctx, '`[3/5]` 🏭 *የድርጅቱን ስም ፅፈው ይላኩ:*\nለምሳሌ: ሀበሻ ንግድ ቤት');
         }
         if (action === 'REG_CEMENT_3') {
             ctx.session.cementData.companyName = text;
@@ -1401,11 +1401,11 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_CEMENT_4') {
             ctx.session.cementData.phone = safePhone(text);
             ctx.session.action = 'REG_CEMENT_5';
-            return sendStep(ctx, '`[5/5]` 💰 *ዋጋ በኩንታል ያስገቡ:*\nቁጥር ብቻ ይጻፉ — ለምሳሌ: 1200 ወይም 1500');
+            return sendStep(ctx, '`[5/5]` 💰 *ዋጋ በኩንታል ፅፈው ይላኩ:*\nቁጥር ብቻ ይጻፉ — ለምሳሌ: 1200 ወይም 1500');
         }
         if (action === 'REG_CEMENT_5') {
             const price = safePrice(text);
-            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 650 ወይም 1200');
+            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ፅፈው ይላኩ!\nለምሳሌ: 650 ወይም 1200');
             const doc = await CementSeller.create({ ...ctx.session.cementData, userId: uid, price, status: 'active' });
             ctx.session.action = null;
             await ctx.reply(cementCard(doc.toObject()), { parse_mode: 'Markdown', ...cementItemKb(doc._id) });
@@ -1416,7 +1416,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_STEEL_1' || action === 'REG_STEEL_1_TEXT') {
             ctx.session.steelData = { type: text };
             ctx.session.action = 'REG_STEEL_2';
-            return sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ያስገቡ:*\nብረቱ የሚሸጥበት ቦታ — ለምሳሌ: ቦሌ፣ አዲስ አበባ');
+            return sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ፅፈው ይላኩ:*\nብረቱ የሚሸጥበት ቦታ — ለምሳሌ: ቦሌ፣ አዲስ አበባ');
         }
         if (action === 'REG_STEEL_2') {
             ctx.session.steelData.address = text;
@@ -1426,11 +1426,11 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_STEEL_3') {
             ctx.session.steelData.phone = safePhone(text);
             ctx.session.action = 'REG_STEEL_4';
-            return sendStep(ctx, '`[4/4]` 💰 *ዋጋ ፐር ኪሎ ግራም ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 55 ወይም 70');
+            return sendStep(ctx, '`[4/4]` 💰 *ዋጋ ፐር ኪሎ ግራም ፅፈው ይላኩ:*\nቁጥር ብቻ ብር — ለምሳሌ: 55 ወይም 70');
         }
         if (action === 'REG_STEEL_4') {
             const price = safePrice(text);
-            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 55 ወይም 70');
+            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ፅፈው ይላኩ!\nለምሳሌ: 55 ወይም 70');
             const doc = await SteelSeller.create({ ...ctx.session.steelData, userId: uid, price, priceUnit: 'ብር/ኪሎ', status: 'active' });
             ctx.session.action = null;
             await ctx.reply(steelCard(doc.toObject()), { parse_mode: 'Markdown', ...steelItemKb(doc._id) });
@@ -1441,7 +1441,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_MACHINERY_1' || action === 'REG_MACHINERY_1_TEXT') {
             ctx.session.machineryData = { type: text };
             ctx.session.action = 'REG_MACHINERY_2';
-            return sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ያስገቡ:*\nማሽነሪው የሚኖርበት ቦታ — ለምሳሌ: አዳማ');
+            return sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ፅፈው ይላኩ:*\nማሽነሪው የሚኖርበት ቦታ — ለምሳሌ: አዳማ');
         }
         if (action === 'REG_MACHINERY_2') {
             ctx.session.machineryData.address = text;
@@ -1467,7 +1467,7 @@ bot.on('text', async (ctx, next) => {
         }
         if (action === 'REG_MACHINERY_4') {
             const price = safePrice(text);
-            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 15000');
+            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ፅፈው ይላኩ!\nለምሳሌ: 15000');
             const unit = ctx.session.machineryData.rentUnit || 'በቀን';
             const doc = await MachineryLeasor.create({ ...ctx.session.machineryData, userId: uid, price, rentUnit: unit, status: 'active' });
             ctx.session.action = null;
@@ -1479,7 +1479,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_TRUCK_1' || action === 'REG_TRUCK_1_TEXT') {
             ctx.session.truckData = { type: text };
             ctx.session.action = 'REG_TRUCK_2';
-            return sendStep(ctx, '`[2/4]` 🚗 *የመኪናው ታርጋ ቁጥር ያስገቡ:*\nለምሳሌ: AA-12345');
+            return sendStep(ctx, '`[2/4]` 🚗 *የመኪናው ታርጋ ቁጥር ፅፈው ይላኩ:*\nለምሳሌ: AA-12345');
         }
         if (action === 'REG_TRUCK_2') {
             ctx.session.truckData.plate = text;
