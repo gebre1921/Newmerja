@@ -108,6 +108,7 @@ const machinerySchema = new mongoose.Schema({
     price:     { type: Number, default: 0 },
     rentUnit:  { type: String, default: 'በቀን', enum: ['በቀን', 'በወር'] },
     status:    { type: String, default: 'active', enum: ['active', 'off'] },
+    viewCount: { type: Number, default: 0 },
     createdAt: { type: Date,   default: Date.now }
 });
 machinerySchema.index({ type: 1, status: 1 });
@@ -120,6 +121,7 @@ const truckSchema = new mongoose.Schema({
     phone:       { type: String, default: '' },
     status:      { type: String, default: 'active', enum: ['active', 'off'] },
     rentedCount: { type: Number, default: 0 },
+    viewCount:   { type: Number, default: 0 },
     createdAt:   { type: Date,   default: Date.now }
 });
 truckSchema.index({ type: 1, route: 1, status: 1 });
@@ -755,7 +757,7 @@ bot.hears('📞 አግኙን', async ctx => {
 
 bot.action('go_home', async ctx => {
     ctx.answerCbQuery().catch(() => {});
-    ctx.session = {};
+    ctx.session.action = null;
     const name = sanitize(ctx.from.first_name || 'ጎብኚ');
     await ctx.reply(welcomeText(name), { parse_mode: 'Markdown', ...mainKb });
 });
@@ -775,6 +777,8 @@ bot.command('admin_panel', async ctx => {
                 [Markup.button.callback('🟥 ብረት',  'rep_stl'),
                  Markup.button.callback('🔹 ማሽነሪ', 'rep_mac')],
                 [Markup.button.callback('📊 ፍለጋ ሪፖርት (ዛሬ)', 'rep_searches')],
+                [Markup.button.callback('👁️ ትራክ — በደምበኛ የተፈለጉ', 'rep_trk_views'),
+                 Markup.button.callback('👁️ ማሽነሪ — በደምበኛ የተፈለጉ', 'rep_mac_views')],
                 [Markup.button.callback('🗑️ ማጥፊያ', 'admin_del')]
             ])
         }
@@ -809,6 +813,39 @@ bot.action('rep_cem', ctx => adminReport(ctx, CementSeller,    '🧱 ሲሚን�
 bot.action('rep_trk', ctx => adminReport(ctx, TruckLeasor,     '🚚 ትራክ አከራዮች', truckCard,  'trk'));
 bot.action('rep_stl', ctx => adminReport(ctx, SteelSeller,     '🟥 ብረት ሻጮች',   steelCard,  'stl'));
 bot.action('rep_mac', ctx => adminReport(ctx, MachineryLeasor, '🔹 ማሽነሪ',       macCard,    'mac'));
+
+// ──────────────────────────────────────────────────────────
+// VIEW COUNT REPORTS — ትራክ እና ማሽነሪ
+// ──────────────────────────────────────────────────────────
+async function viewCountReport(ctx, Model, title, cardFn) {
+    await ctx.answerCbQuery().catch(() => {});
+    if (!isAdmin(ctx)) return ctx.reply('⛔');
+    const items = await Model.find({ viewCount: { $gt: 0 } })
+        .sort({ viewCount: -1, createdAt: -1 })
+        .lean();
+    if (!items.length)
+        return ctx.reply(`📭 *${title}*\n\nገና ምንም ደምበኛ አልፈለገም።`, { parse_mode: 'Markdown' });
+
+    const total = items.reduce((s, i) => s + (i.viewCount || 0), 0);
+    await ctx.reply(
+        `👁️ *${title}*\n` +
+        `ጠቅላላ ፍለጋ: *${total}* | ዕቃዎች: *${items.length}*\n` +
+        `_ከብዙ ተፈላጊ ወደ ትንሽ ተፈላጊ ተሰልፎ ነው_`,
+        { parse_mode: 'Markdown' }
+    );
+    for (const it of items) {
+        const views  = it.viewCount  || 0;
+        const rented = it.rentedCount != null ? `\n▸ 🔑 ተከራይቷል ፦ *${it.rentedCount} ጊዜ*` : '';
+        const card   = cardFn(it, true);
+        await ctx.reply(
+            `${card}\n▸ 👁️ ተፈልጎ ታይቷል ፦ *${views} ጊዜ*${rented}`,
+            { parse_mode: 'Markdown' }
+        );
+    }
+}
+
+bot.action('rep_trk_views', ctx => viewCountReport(ctx, TruckLeasor,     '🚚 ትራክ — በደምበኛ የተፈለጉ', truckCard));
+bot.action('rep_mac_views', ctx => viewCountReport(ctx, MachineryLeasor, '🔹 ማሽነሪ — በደምበኛ የተፈለጉ', macCard));
 
 bot.action('rep_searches', async ctx => {
     await ctx.answerCbQuery();
@@ -1268,55 +1305,39 @@ async function openDashboard(ctx, Model, cardFn, kb, emptyAction, emptySession, 
         await ctx.reply(cardFn(it, false), { parse_mode: 'Markdown', ...kb(it._id) });
 }
 
-bot.hears('🧱 ሲሚንቶ ለመሸጥ', ctx => {
-    ctx.session = {};
-    return openDashboard(
-        ctx, CementSeller, cementCard, cementItemKb, 'REG_CEMENT_1', 'cementData',
-        c => askChoice(c, '🧱 `[1/5]` *የሲሚንቶ አይነት ይምረጡ:*', CEMENT_TYPES, 'CTYPE_', 4)
-    );
-});
-bot.hears('🟥 ብረት ለመሸጥ', ctx => {
-    ctx.session = {};
-    return openDashboard(
-        ctx, SteelSeller, steelCard, steelItemKb, 'REG_STEEL_1', 'steelData',
-        c => askChoice(c, '🟥 `[1/4]` *የብረት አይነት ይምረጡ:*', STEEL_TYPES, 'STYPE_', 3)
-    );
-});
-bot.hears('🔹 ማሽነሪ ለማከራየት', ctx => {
-    ctx.session = {};
-    return openDashboard(
-        ctx, MachineryLeasor, macCard, macItemKb, 'REG_MACHINERY_1', 'machineryData',
-        c => askChoice(c, '🔹 `[1/4]` *የማሽነሪ አይነት ይምረጡ:*', MACHINERY_TYPES, 'MTYPE_', 2)
-    );
-});
-bot.hears('🚚 መኪና ለማከራየት', ctx => {
-    ctx.session = {};
-    return openDashboard(
-        ctx, TruckLeasor, truckCard, truckItemKb, 'REG_TRUCK_1', 'truckData',
-        c => askChoice(c, '🚚 `[1/4]` *የመኪናውን አይነት ይምረጡ:*', TRUCK_TYPES, 'TKTYPE_', 2)
-    );
-});
+bot.hears('🧱 ሲሚንቶ ለመሸጥ', ctx => openDashboard(
+    ctx, CementSeller, cementCard, cementItemKb, 'REG_CEMENT_1', 'cementData',
+    c => askChoice(c, '🧱 `[1/5]` *የሲሚንቶ አይነት ይምረጡ:*', CEMENT_TYPES, 'CTYPE_', 4)
+));
+bot.hears('🟥 ብረት ለመሸጥ', ctx => openDashboard(
+    ctx, SteelSeller, steelCard, steelItemKb, 'REG_STEEL_1', 'steelData',
+    c => askChoice(c, '🟥 `[1/4]` *የብረት አይነት ይምረጡ:*', STEEL_TYPES, 'STYPE_', 3)
+));
+bot.hears('🔹 ማሽነሪ ለማከራየት', ctx => openDashboard(
+    ctx, MachineryLeasor, macCard, macItemKb, 'REG_MACHINERY_1', 'machineryData',
+    c => askChoice(c, '🔹 `[1/4]` *የማሽነሪ አይነት ይምረጡ:*', MACHINERY_TYPES, 'MTYPE_', 2)
+));
+bot.hears('🚚 መኪና ለማከራየት', ctx => openDashboard(
+    ctx, TruckLeasor, truckCard, truckItemKb, 'REG_TRUCK_1', 'truckData',
+    c => askChoice(c, '🚚 `[1/4]` *የመኪናውን አይነት ይምረጡ:*', TRUCK_TYPES, 'TKTYPE_', 2)
+));
 
 // ──────────────────────────────────────────────────────────
 // BUYER/RENTER SEARCH FLOWS
 // ──────────────────────────────────────────────────────────
 bot.hears('🧱 ሲሚንቶ ለመግዛት', ctx => {
-    ctx.session = {};
     ctx.session.action = 'BUY_CEMENT_1'; ctx.session.buyCement = {};
     askChoice(ctx, '🧱 `[1/3]` *ምን አይነት ሲሚንቶ ይፈልጋሉ?*', CEMENT_TYPES, 'BCEM_', 4);
 });
 bot.hears('🟥 ብረት ለመግዛት', ctx => {
-    ctx.session = {};
     ctx.session.action = 'BUY_STEEL_1'; ctx.session.buySteel = {};
     askChoice(ctx, '🟥 `[1/3]` *ምን አይነት ብረት ይፈልጋሉ?*', STEEL_TYPES, 'BSTL_', 3);
 });
 bot.hears('🔹 ማሽነሪ ለመከራየት', ctx => {
-    ctx.session = {};
     ctx.session.action = 'RENT_MACHINERY_1'; ctx.session.rentMachinery = {};
     askChoice(ctx, '🔹 `[1/3]` *ምን አይነት ማሽነሪ ይፈልጋሉ?*', MACHINERY_TYPES, 'BMAC_', 2);
 });
 bot.hears('🚚 መኪና ለመከራየት', async ctx => {
-    ctx.session = {};
     ctx.session.action = 'RENT_TRUCK_1'; ctx.session.rentTruck = {};
     await askChoice(ctx, '`[1/5]` 🚚 *ምን አይነት መኪና ይፈልጋሉ?*', TRUCK_TYPES, 'BTRK_', 2, 'go_home');
 });
@@ -1679,8 +1700,10 @@ bot.on('text', async (ctx, next) => {
                     `📞 ስልክዎ: \`${phone}\``,
                     { parse_mode: 'Markdown' }
                 );
-                for (const it of results)
+                for (const it of results) {
                     await ctx.reply(macCardBuyer(it), { parse_mode: 'Markdown' });
+                    MachineryLeasor.findByIdAndUpdate(it._id, { $inc: { viewCount: 1 } }).catch(() => {});
+                }
                 await ctx.reply(supportLine, { parse_mode: 'Markdown', ...mainKb });
             }
             return;
@@ -1745,9 +1768,9 @@ bot.on('text', async (ctx, next) => {
                     await ctx.reply(truckCardBuyer(it), { parse_mode: 'Markdown' });
                 await ctx.reply(supportLine, { parse_mode: 'Markdown', ...mainKb });
 
-                // Increment rentedCount
+                // Increment rentedCount and viewCount
                 for (const it of results)
-                    TruckLeasor.findByIdAndUpdate(it._id, { $inc: { rentedCount: 1 } }).catch(() => {});
+                    TruckLeasor.findByIdAndUpdate(it._id, { $inc: { rentedCount: 1, viewCount: 1 } }).catch(() => {});
             }
             return;
         }
