@@ -94,6 +94,7 @@ const steelSchema = new mongoose.Schema({
     address:   { type: String, default: '' },
     phone:     { type: String, default: '' },
     price:     { type: Number, default: 0 },
+    priceUnit: { type: String, default: 'ብር/ኪሎ' },
     status:    { type: String, default: 'active', enum: ['active', 'off'] },
     createdAt: { type: Date,   default: Date.now }
 });
@@ -105,6 +106,7 @@ const machinerySchema = new mongoose.Schema({
     address:   { type: String, default: '' },
     phone:     { type: String, default: '' },
     price:     { type: Number, default: 0 },
+    rentUnit:  { type: String, default: 'በቀን', enum: ['በቀን', 'በወር'] },
     status:    { type: String, default: 'active', enum: ['active', 'off'] },
     createdAt: { type: Date,   default: Date.now }
 });
@@ -527,18 +529,20 @@ function cementCardBuyer(it) {
     );
 }
 function steelCardBuyer(it) {
+    const unit = it.priceUnit || 'ብር/ኪሎ';
     return (
         `🟥 *${esc(it.type)}*\n` +
         `▸ 📍 አድራሻ ፦ ${esc(it.address)}\n` +
-        `▸ 💰 ዋጋ    ፦ *${fmt(it.price)} ብር*\n` +
+        `▸ 💰 ዋጋ    ፦ *${fmt(it.price)} ${unit}*\n` +
         `▸ ${statusBadge(it.status)}`
     );
 }
 function macCardBuyer(it) {
+    const unit = it.rentUnit || 'በቀን';
     return (
         `🔹 *${esc(it.type)}*\n` +
         `▸ 📍 አድራሻ ፦ ${esc(it.address)}\n` +
-        `▸ 💰 ኪራይ  ፦ *${fmt(it.price)} ብር*\n` +
+        `▸ 💰 ኪራይ  ፦ *${fmt(it.price)} ብር ${unit}*\n` +
         `▸ ${statusBadge(it.status)}`
     );
 }
@@ -567,11 +571,12 @@ function steelCard(it, adminView = false) {
     const badge = adminView
         ? (it.status === 'active' ? '✅ ክምችት አለ' : '❌ ክምችት የለም')
         : statusBadge(it.status);
+    const unit = it.priceUnit || 'ብር/ኪሎ';
     return (
         `🟥 *${esc(it.type)}*\n` +
         `▸ 📍 አድራሻ ፦ ${esc(it.address)}\n` +
         `▸ 📞 ስልክ  ፦ \`${esc(it.phone)}\`\n` +
-        `▸ 💰 ዋጋ   ፦ *${fmt(it.price)} ብር*\n` +
+        `▸ 💰 ዋጋ   ፦ *${fmt(it.price)} ${unit}*\n` +
         `▸ ሁኔታ    ፦ ${badge}`
     );
 }
@@ -579,11 +584,12 @@ function macCard(it, adminView = false) {
     const badge = adminView
         ? (it.status === 'active' ? '✅ ዝግጁ ነው' : '❌ አይከራይም')
         : statusBadge(it.status);
+    const unit = it.rentUnit || 'በቀን';
     return (
         `🔹 *${esc(it.type)}*\n` +
         `▸ 📍 አድራሻ ፦ ${esc(it.address)}\n` +
         `▸ 📞 ስልክ  ፦ \`${esc(it.phone)}\`\n` +
-        `▸ 💰 ኪራይ  ፦ *${fmt(it.price)} ብር*\n` +
+        `▸ 💰 ኪራይ  ፦ *${fmt(it.price)} ብር ${unit}*\n` +
         `▸ ሁኔታ    ፦ ${badge}`
     );
 }
@@ -923,7 +929,7 @@ bot.action(/^stl_price_([a-f\d]{24})$/i, async ctx => {
     const id = getObjId(ctx.match);
     if (!isValidObjectId(id)) return ctx.answerCbQuery('❗');
     ctx.session.action = 'UPD_STL_PRICE'; ctx.session.targetItemId = id;
-    await sendStep(ctx, '💰 *አዲሱን ዋጋ ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 5000');
+    await sendStep(ctx, '💰 *አዲሱን ዋጋ ፐር ኪሎ ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 55 ወይም 70');
     ctx.answerCbQuery();
 });
 bot.action('stl_add', async ctx => {
@@ -943,6 +949,24 @@ bot.action('mac_add', async ctx => {
     ctx.session.action = 'REG_MACHINERY_1'; ctx.session.machineryData = {};
     await askChoice(ctx, '🔹 `[1/4]` *የማሽነሪ አይነት ይምረጡ:*', MACHINERY_TYPES, 'MTYPE_', 2);
     ctx.answerCbQuery();
+});
+
+bot.action('MACUNIT_day', async ctx => {
+    await ctx.answerCbQuery();
+    await deletePrev(ctx);
+    ctx.session.machineryData.rentUnit = 'በቀን';
+    ctx.session.action = 'REG_MACHINERY_4';
+    const sent = await ctx.reply('`[5/5]` 💰 *ኪራይ ዋጋ በቀን ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 15000', { parse_mode: 'Markdown', ...cancelKb });
+    ctx.session.lastMsgId = sent.message_id;
+});
+
+bot.action('MACUNIT_month', async ctx => {
+    await ctx.answerCbQuery();
+    await deletePrev(ctx);
+    ctx.session.machineryData.rentUnit = 'በወር';
+    ctx.session.action = 'REG_MACHINERY_4';
+    const sent = await ctx.reply('`[5/5]` 💰 *ኪራይ ዋጋ በወር ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 350000', { parse_mode: 'Markdown', ...cancelKb });
+    ctx.session.lastMsgId = sent.message_id;
 });
 
 bot.action(/^trk_route_([a-f\d]{24})$/i, async ctx => {
@@ -1382,12 +1406,12 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_STEEL_3') {
             ctx.session.steelData.phone = safePhone(text);
             ctx.session.action = 'REG_STEEL_4';
-            return sendStep(ctx, '`[4/4]` 💰 *ዋጋ ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 5000');
+            return sendStep(ctx, '`[4/4]` 💰 *ዋጋ ፐር ኪሎ ግራም ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 55 ወይም 70');
         }
         if (action === 'REG_STEEL_4') {
             const price = safePrice(text);
-            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 5000');
-            const doc = await SteelSeller.create({ ...ctx.session.steelData, userId: uid, price, status: 'active' });
+            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 55 ወይም 70');
+            const doc = await SteelSeller.create({ ...ctx.session.steelData, userId: uid, price, priceUnit: 'ብር/ኪሎ', status: 'active' });
             ctx.session.action = null;
             await ctx.reply(steelCard(doc.toObject()), { parse_mode: 'Markdown', ...steelItemKb(doc._id) });
             return ctx.reply('✅ *ምዝገባ ተጠናቋል!*' + supportLine, { parse_mode: 'Markdown', ...mainKb });
@@ -1406,13 +1430,26 @@ bot.on('text', async (ctx, next) => {
         }
         if (action === 'REG_MACHINERY_3') {
             ctx.session.machineryData.phone = safePhone(text);
-            ctx.session.action = 'REG_MACHINERY_4';
-            return sendStep(ctx, '`[4/4]` 💰 *ኪራይ ዋጋ ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 15000');
+            ctx.session.action = 'REG_MACHINERY_UNIT';
+            await deletePrev(ctx);
+            const sent = await ctx.reply(
+                '`[4/5]` 📅 *ኪራይ ዓይነት ይምረጡ:*',
+                {
+                    parse_mode: 'Markdown',
+                    ...Markup.inlineKeyboard([
+                        [Markup.button.callback('📅 በቀን', 'MACUNIT_day'),
+                         Markup.button.callback('🗓️ በወር', 'MACUNIT_month')]
+                    ])
+                }
+            );
+            ctx.session.lastMsgId = sent.message_id;
+            return;
         }
         if (action === 'REG_MACHINERY_4') {
             const price = safePrice(text);
             if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 15000');
-            const doc = await MachineryLeasor.create({ ...ctx.session.machineryData, userId: uid, price, status: 'active' });
+            const unit = ctx.session.machineryData.rentUnit || 'በቀን';
+            const doc = await MachineryLeasor.create({ ...ctx.session.machineryData, userId: uid, price, rentUnit: unit, status: 'active' });
             ctx.session.action = null;
             await ctx.reply(macCard(doc.toObject()), { parse_mode: 'Markdown', ...macItemKb(doc._id) });
             return ctx.reply('✅ *ምዝገባ ተጠናቋል!*' + supportLine, { parse_mode: 'Markdown', ...mainKb });
