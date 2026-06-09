@@ -149,7 +149,7 @@ const BotSession      = mongoose.model('BotSession',      sessionSchema);
 async function connectMongo() {
     try {
         await mongoose.connect(MONGO_URI, {
-            maxPoolSize: 50, minPoolSize: 5,
+            maxPoolSize: 100, minPoolSize: 10,
             serverSelectionTimeoutMS: 8000,
             socketTimeoutMS: 45000,
             heartbeatFrequencyMS: 10000,
@@ -183,7 +183,7 @@ bot.use(async (ctx, next) => {
     if (!ctx.from) return next();
     const uid = ctx.from.id;
     if (ctx.from.is_bot) return;
-    if (rateLimit(uid, 40)) {
+    if (rateLimit(uid, 60)) {
         await ctx.reply('⚠️ በጣም ብዙ ጥያቄ ልከዋል። ጥቂት ቆዩ።').catch(() => {});
         return;
     }
@@ -958,6 +958,23 @@ bot.action('trk_add', async ctx => {
     ctx.answerCbQuery();
 });
 
+bot.action('REGTRKMODE_AA', async ctx => {
+    await ctx.answerCbQuery();
+    await deletePrev(ctx);
+    ctx.session.truckData.route = 'አዲስ አበባ ከተማ ውስጥ';
+    ctx.session.action = 'REG_TRUCK_4';
+    const sent = await ctx.reply('`[4/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567', { parse_mode: 'Markdown', ...cancelKb });
+    ctx.session.lastMsgId = sent.message_id;
+});
+
+bot.action('REGTRKMODE_CITY', async ctx => {
+    await ctx.answerCbQuery();
+    await deletePrev(ctx);
+    ctx.session.action = 'REG_TRUCK_3';
+    const sent = await ctx.reply('`[3/4]` 🛣️ *የጉዞ መስመር ያስገቡ:*\nለምሳሌ: ከ አ.አ ወደ ሀዋሳ', { parse_mode: 'Markdown', ...cancelKb });
+    ctx.session.lastMsgId = sent.message_id;
+});
+
 // ──────────────────────────────────────────────────────────
 // DROPDOWN CALLBACKS — SELLER REGISTRATION
 // ──────────────────────────────────────────────────────────
@@ -1109,8 +1126,9 @@ bot.action(/^BTRKMODE_(.+)$/, async ctx => {
     await ctx.answerCbQuery();
     await deletePrev(ctx);
     if (val === '🏙️ አዲስ አበባ ከተማ ውስጥ') {
-        ctx.session.action = 'RENT_TRUCK_AA_NEIGHBORHOOD';
-        await askChoice(ctx, '`[3/5]` 🏙️ *የሚፈልጉት ሰፈር ይምረጡ:*', AA_NEIGHBORHOODS, 'BTRKAA_', 3, 'BACK_TRIP_MODE');
+        ctx.session.rentTruck.route = 'አዲስ አበባ ከተማ ውስጥ';
+        ctx.session.action = 'RENT_TRUCK_3';
+        await sendStep(ctx, '`[3/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nሾፌሩ ያገኝዎ ዘንድ ቁጥርዎን ያስገቡ');
     } else {
         ctx.session.action = 'RENT_TRUCK_2';
         await askChoice(ctx, '`[3/5]` 🛣️ *ጉዞ ከየት ይጀምራሉ? (መነሻ ቦታ):*', TRUCK_ROUTES_FROM, 'BTRKLOC_', 4, 'BACK_TRIP_MODE');
@@ -1408,8 +1426,20 @@ bot.on('text', async (ctx, next) => {
         }
         if (action === 'REG_TRUCK_2') {
             ctx.session.truckData.plate = text;
-            ctx.session.action = 'REG_TRUCK_3';
-            return sendStep(ctx, '`[3/4]` 🛣️ *የጉዞ መስመር ያስገቡ:*\nለምሳሌ: ከ አ.አ ወደ ሀዋሳ ወይም በከተማ ውስጥ');
+            ctx.session.action = 'REG_TRUCK_ROUTE_MODE';
+            await deletePrev(ctx);
+            const sent = await ctx.reply(
+                '`[3/4]` 🛣️ *የጉዞ ዓይነት ይምረጡ:*',
+                {
+                    parse_mode: 'Markdown',
+                    ...require('telegraf').Markup.inlineKeyboard([
+                        [require('telegraf').Markup.button.callback('🏙️ አዲስ አበባ ከተማ ውስጥ', 'REGTRKMODE_AA')],
+                        [require('telegraf').Markup.button.callback('🛣️ ከአንድ ከተማ ወደ ሌላ ከተማ', 'REGTRKMODE_CITY')]
+                    ])
+                }
+            );
+            ctx.session.lastMsgId = sent.message_id;
+            return;
         }
         if (action === 'REG_TRUCK_3') {
             ctx.session.truckData.route = text;
@@ -1657,7 +1687,7 @@ server.listen(PORT, () => console.log(`🌐 HTTP server on port ${PORT}`));
 if (RENDER_URL) {
     setInterval(() => {
         http.get(RENDER_URL).on('error', () => {});
-    }, 14 * 60 * 1000);
+    }, 4 * 60 * 1000);
 }
 
 // ──────────────────────────────────────────────────────────
