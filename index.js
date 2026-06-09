@@ -171,8 +171,16 @@ connectMongo();
 // BOT + SESSION
 // ──────────────────────────────────────────────────────────
 const bot = new Telegraf(BOT_TOKEN, {
-    handlerTimeout: 90_000,
+    handlerTimeout: 120_000,
     telegram: { webhookReply: false }
+});
+
+// Prevent crash on unhandled promise rejections
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
 });
 
 const sessionCache = new Map();
@@ -924,7 +932,7 @@ bot.action(/^cem_price_([a-f\d]{24})$/i, async ctx => {
     const id = getObjId(ctx.match);
     if (!isValidObjectId(id)) return;
     ctx.session.action = 'UPD_CEM_PRICE'; ctx.session.targetItemId = id;
-    await sendStep(ctx, '💰 *አዲሱን ዋጋ ያስገቡ:*\nፐር ኩንታል ቁጥር ብቻ — ለምሳሌ: 650');
+    await sendStep(ctx, '💰 *አዲሱን ዋጋ ያስገቡ:*\nበኩንታል ቁጥር ብቻ — ለምሳሌ: 1200 ወይም 1500');
 });
 bot.action('cem_add', async ctx => {
     ctx.answerCbQuery().catch(() => {});
@@ -1393,7 +1401,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_CEMENT_4') {
             ctx.session.cementData.phone = safePhone(text);
             ctx.session.action = 'REG_CEMENT_5';
-            return sendStep(ctx, '`[5/5]` 💰 *ዋጋ ፐር ኩንታል ያስገቡ:*\nቁጥር ብቻ ይጻፉ — ለምሳሌ: 650');
+            return sendStep(ctx, '`[5/5]` 💰 *ዋጋ በኩንታል ያስገቡ:*\nቁጥር ብቻ ይጻፉ — ለምሳሌ: 1200 ወይም 1500');
         }
         if (action === 'REG_CEMENT_5') {
             const price = safePrice(text);
@@ -1732,11 +1740,11 @@ const server = http.createServer((req, res) => {
 });
 server.listen(PORT, () => console.log(`🌐 HTTP server on port ${PORT}`));
 
-// Self-ping to avoid Render free-tier spin-down — every 60 seconds for 24/7 reliability
+// Self-ping to avoid Render free-tier spin-down — every 25 seconds for 24/7 reliability
 if (RENDER_URL) {
     setInterval(() => {
         http.get(RENDER_URL).on('error', () => {});
-    }, 60 * 1000);
+    }, 25 * 1000);
 }
 
 // ──────────────────────────────────────────────────────────
