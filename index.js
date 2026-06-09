@@ -1003,7 +1003,7 @@ bot.action('REGTRKMODE_AA', async ctx => {
     await deletePrev(ctx);
     ctx.session.truckData.route = 'አዲስ አበባ ከተማ ውስጥ';
     ctx.session.action = 'REG_TRUCK_4';
-    const sent = await ctx.reply('`[4/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567', { parse_mode: 'Markdown', ...cancelKb });
+    const sent = await ctx.reply('`[4/4]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567', { parse_mode: 'Markdown', ...cancelKb });
     ctx.session.lastMsgId = sent.message_id;
 });
 
@@ -1115,7 +1115,7 @@ bot.action(/^BCEMLOC_(.+)$/, async ctx => {
     } else {
         ctx.session.buyCement.location = val;
         ctx.session.action = 'BUY_CEMENT_3';
-        await sendStep(ctx, '`[3/3]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+        await sendStep(ctx, '`[3/3]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
     }
 });
 
@@ -1168,7 +1168,7 @@ bot.action(/^BTRKMODE_(.+)$/, async ctx => {
     if (val === '🏙️ አዲስ አበባ ከተማ ውስጥ') {
         ctx.session.rentTruck.route = 'አዲስ አበባ ከተማ ውስጥ';
         ctx.session.action = 'RENT_TRUCK_3';
-        await sendStep(ctx, '`[3/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+        await sendStep(ctx, '`[3/5]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
     } else {
         ctx.session.action = 'RENT_TRUCK_2';
         await askChoice(ctx, '`[3/5]` 🛣️ *ጉዞ ከየት ይጀምራሉ? (መነሻ ቦታ):*', TRUCK_ROUTES_FROM, 'BTRKLOC_', 4, 'BACK_TRIP_MODE');
@@ -1185,7 +1185,7 @@ bot.action(/^BTRKAA_(.+)$/, async ctx => {
     } else {
         ctx.session.rentTruck.route = `አዲስ አበባ — ${val}`;
         ctx.session.action = 'RENT_TRUCK_3';
-        await sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+        await sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
     }
 });
 
@@ -1230,7 +1230,7 @@ bot.action(/^BTRKTO_(.+)$/, async ctx => {
     } else {
         ctx.session.rentTruck.route = `ከ ${ctx.session.rentTruck.routeFrom || ''} ወደ ${val}`;
         ctx.session.action = 'RENT_TRUCK_3';
-        await sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+        await sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
     }
 });
 
@@ -1396,7 +1396,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_CEMENT_3') {
             ctx.session.cementData.companyName = text;
             ctx.session.action = 'REG_CEMENT_4';
-            return sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
         }
         if (action === 'REG_CEMENT_4') {
             ctx.session.cementData.phone = safePhone(text);
@@ -1421,7 +1421,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_STEEL_2') {
             ctx.session.steelData.address = text;
             ctx.session.action = 'REG_STEEL_3';
-            return sendStep(ctx, '`[3/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[3/4]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
         }
         if (action === 'REG_STEEL_3') {
             ctx.session.steelData.phone = safePhone(text);
@@ -1446,7 +1446,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_MACHINERY_2') {
             ctx.session.machineryData.address = text;
             ctx.session.action = 'REG_MACHINERY_3';
-            return sendStep(ctx, '`[3/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[3/4]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
         }
         if (action === 'REG_MACHINERY_3') {
             ctx.session.machineryData.phone = safePhone(text);
@@ -1501,7 +1501,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_TRUCK_3') {
             ctx.session.truckData.route = text;
             ctx.session.action = 'REG_TRUCK_4';
-            return sendStep(ctx, '`[4/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[4/4]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
         }
         if (action === 'REG_TRUCK_4') {
             ctx.session.truckData.phone = safePhone(text);
@@ -1520,7 +1520,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'BUY_CEMENT_2' || action === 'BUY_CEMENT_2_TEXT') {
             ctx.session.buyCement.location = text;
             ctx.session.action = 'BUY_CEMENT_3';
-            return sendStep(ctx, '`[3/3]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[3/3]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
         }
         if (action === 'BUY_CEMENT_3') {
             const phone = safePhone(text);
@@ -1568,7 +1568,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'BUY_STEEL_2') {
             ctx.session.buySteel.location = text;
             ctx.session.action = 'BUY_STEEL_3';
-            return sendStep(ctx, '`[3/3]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[3/3]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
         }
         if (action === 'BUY_STEEL_3') {
             const phone = safePhone(text);
@@ -1616,7 +1616,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'RENT_MACHINERY_2') {
             ctx.session.rentMachinery.location = text;
             ctx.session.action = 'RENT_MACHINERY_3';
-            return sendStep(ctx, '`[3/3]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[3/3]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
         }
         if (action === 'RENT_MACHINERY_3') {
             const phone = safePhone(text);
@@ -1665,7 +1665,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'RENT_TRUCK_AA_TEXT') {
             ctx.session.rentTruck.route = `አዲስ አበባ — ${text}`;
             ctx.session.action = 'RENT_TRUCK_3';
-            return sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
         }
 
         if (action === 'RENT_TRUCK_2_FROM_TEXT') {
@@ -1677,7 +1677,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'RENT_TRUCK_2_TO_TEXT') {
             ctx.session.rentTruck.route = `ከ ${ctx.session.rentTruck.routeFrom || ''} ወደ ${text}`;
             ctx.session.action = 'RENT_TRUCK_3';
-            return sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ይላኩ:*\nለምሳሌ: 0911234567');
         }
 
         if (action === 'RENT_TRUCK_3') {
