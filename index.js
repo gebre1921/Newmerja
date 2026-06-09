@@ -84,6 +84,7 @@ const cementSchema = new mongoose.Schema({
     phone:       { type: String, default: '' },
     price:       { type: Number, default: 0 },
     status:      { type: String, default: 'active', enum: ['active', 'off'] },
+    viewCount:   { type: Number, default: 0 },
     createdAt:   { type: Date,   default: Date.now }
 });
 cementSchema.index({ type: 1, location: 1, status: 1 });
@@ -96,6 +97,7 @@ const steelSchema = new mongoose.Schema({
     price:     { type: Number, default: 0 },
     priceUnit: { type: String, default: 'ብር/ኪሎ' },
     status:    { type: String, default: 'active', enum: ['active', 'off'] },
+    viewCount: { type: Number, default: 0 },
     createdAt: { type: Date,   default: Date.now }
 });
 steelSchema.index({ type: 1, status: 1 });
@@ -777,8 +779,10 @@ bot.command('admin_panel', async ctx => {
                 [Markup.button.callback('🟥 ብረት',  'rep_stl'),
                  Markup.button.callback('🔹 ማሽነሪ', 'rep_mac')],
                 [Markup.button.callback('📊 ፍለጋ ሪፖርት (ዛሬ)', 'rep_searches')],
-                [Markup.button.callback('👁️ ትራክ — በደምበኛ የተፈለጉ', 'rep_trk_views'),
-                 Markup.button.callback('👁️ ማሽነሪ — በደምበኛ የተፈለጉ', 'rep_mac_views')],
+                [Markup.button.callback('👁️ ሲሚንቶ — ተፈላጊ', 'rep_cem_views'),
+                 Markup.button.callback('👁️ ብረት — ተፈላጊ',  'rep_stl_views')],
+                [Markup.button.callback('👁️ ማሽነሪ — ተፈላጊ', 'rep_mac_views'),
+                 Markup.button.callback('👁️ ትራክ — ተፈላጊ',  'rep_trk_views')],
                 [Markup.button.callback('🗑️ ማጥፊያ', 'admin_del')]
             ])
         }
@@ -815,7 +819,7 @@ bot.action('rep_stl', ctx => adminReport(ctx, SteelSeller,     '🟥 ብረት �
 bot.action('rep_mac', ctx => adminReport(ctx, MachineryLeasor, '🔹 ማሽነሪ',       macCard,    'mac'));
 
 // ──────────────────────────────────────────────────────────
-// VIEW COUNT REPORTS — ትራክ እና ማሽነሪ
+// VIEW COUNT REPORTS — ሁሉም ዕቃዎች (recent-first by viewCount)
 // ──────────────────────────────────────────────────────────
 async function viewCountReport(ctx, Model, title, cardFn) {
     await ctx.answerCbQuery().catch(() => {});
@@ -834,7 +838,7 @@ async function viewCountReport(ctx, Model, title, cardFn) {
         { parse_mode: 'Markdown' }
     );
     for (const it of items) {
-        const views  = it.viewCount  || 0;
+        const views  = it.viewCount   || 0;
         const rented = it.rentedCount != null ? `\n▸ 🔑 ተከራይቷል ፦ *${it.rentedCount} ጊዜ*` : '';
         const card   = cardFn(it, true);
         await ctx.reply(
@@ -844,8 +848,10 @@ async function viewCountReport(ctx, Model, title, cardFn) {
     }
 }
 
-bot.action('rep_trk_views', ctx => viewCountReport(ctx, TruckLeasor,     '🚚 ትራክ — በደምበኛ የተፈለጉ', truckCard));
-bot.action('rep_mac_views', ctx => viewCountReport(ctx, MachineryLeasor, '🔹 ማሽነሪ — በደምበኛ የተፈለጉ', macCard));
+bot.action('rep_cem_views', ctx => viewCountReport(ctx, CementSeller,    '🧱 ሲሚንቶ — በደምበኛ የተፈለጉ',  cementCard));
+bot.action('rep_stl_views', ctx => viewCountReport(ctx, SteelSeller,     '🟥 ብረት — በደምበኛ የተፈለጉ',   steelCard));
+bot.action('rep_mac_views', ctx => viewCountReport(ctx, MachineryLeasor, '🔹 ማሽነሪ — በደምበኛ የተፈለጉ',  macCard));
+bot.action('rep_trk_views', ctx => viewCountReport(ctx, TruckLeasor,     '🚚 ትራክ — በደምበኛ የተፈለጉ',   truckCard));
 
 bot.action('rep_searches', async ctx => {
     await ctx.answerCbQuery();
@@ -1604,8 +1610,10 @@ bot.on('text', async (ctx, next) => {
                     `📞 ስልክዎ: \`${phone}\``,
                     { parse_mode: 'Markdown' }
                 );
-                for (const it of results)
+                for (const it of results) {
                     await ctx.reply(cementCardBuyer(it), { parse_mode: 'Markdown' });
+                    CementSeller.findByIdAndUpdate(it._id, { $inc: { viewCount: 1 } }).catch(() => {});
+                }
                 await ctx.reply(supportLine, { parse_mode: 'Markdown', ...mainKb });
             }
             return;
@@ -1652,8 +1660,10 @@ bot.on('text', async (ctx, next) => {
                     `📞 ስልክዎ: \`${phone}\``,
                     { parse_mode: 'Markdown' }
                 );
-                for (const it of results)
+                for (const it of results) {
                     await ctx.reply(steelCardBuyer(it), { parse_mode: 'Markdown' });
+                    SteelSeller.findByIdAndUpdate(it._id, { $inc: { viewCount: 1 } }).catch(() => {});
+                }
                 await ctx.reply(supportLine, { parse_mode: 'Markdown', ...mainKb });
             }
             return;
