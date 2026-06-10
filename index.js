@@ -74,6 +74,32 @@ function safePrice(text) {
 }
 
 // ──────────────────────────────────────────────────────────
+// FAIRNESS — shuffle results that share the same price so
+//            no seller always appears first
+// ──────────────────────────────────────────────────────────
+function fairShuffle(items) {
+    // Group by price, shuffle within each price group, then flatten
+    const groups = new Map();
+    for (const it of items) {
+        const key = it.price;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(it);
+    }
+    // Sort price groups ascending, shuffle within each group
+    const sorted = [...groups.entries()].sort((a, b) => a[0] - b[0]);
+    const result = [];
+    for (const [, group] of sorted) {
+        // Fisher-Yates shuffle within same-price group
+        for (let i = group.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [group[i], group[j]] = [group[j], group[i]];
+        }
+        result.push(...group);
+    }
+    return result;
+}
+
+// ──────────────────────────────────────────────────────────
 // SCHEMAS
 // ──────────────────────────────────────────────────────────
 const cementSchema = new mongoose.Schema({
@@ -459,23 +485,20 @@ async function findTruck(type, route) {
     const typeRx  = searchRx(type);
     const routeRx = searchRx(route);
 
-    let results = await TruckLeasor.find({
+    let raw = await TruckLeasor.find({
         type: typeRx, route: routeRx, status: 'active'
-    }).sort({ rentedCount: 1 }).limit(5).lean();
+    }).limit(20).lean();
+    if (raw.length) return raw;
 
-    if (results.length) return results;
-
-    results = await TruckLeasor.find({
+    raw = await TruckLeasor.find({
         type: typeRx, status: 'active'
-    }).sort({ rentedCount: 1 }).limit(5).lean();
+    }).limit(20).lean();
+    if (raw.length) return raw;
 
-    if (results.length) return results;
-
-    results = await TruckLeasor.find({
+    raw = await TruckLeasor.find({
         route: routeRx, status: 'active'
-    }).sort({ rentedCount: 1 }).limit(5).lean();
-
-    return results;
+    }).limit(20).lean();
+    return raw;
 }
 
 function logSearch(ctx, category, searchedFor, phone) {
@@ -1583,15 +1606,20 @@ bot.on('text', async (ctx, next) => {
         if (action === 'BUY_CEMENT_3') {
             const phone = safePhone(text);
             const { type, location } = ctx.session.buyCement;
+            // Save phone for "more options" refresh
+            ctx.session.buyCement.phone = phone;
             const typeRx = searchRx(type);
             const locRx  = searchRx(location);
 
-            let results = await CementSeller.find({
+            let raw = await CementSeller.find({
                 type: typeRx, location: locRx, status: 'active'
-            }).sort({ price: 1 }).limit(5).lean();
+            }).sort({ price: 1 }).limit(20).lean();
 
-            if (!results.length)
-                results = await CementSeller.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(5).lean();
+            if (!raw.length)
+                raw = await CementSeller.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(20).lean();
+
+            // Fair shuffle within same-price groups, show up to 4
+            const results = fairShuffle(raw).slice(0, 4);
 
             logSearch(ctx, '🧱 ሲሚንቶ ፈላጊ', `${type} — ${location}`, phone);
             ctx.session.action = null;
@@ -1614,7 +1642,16 @@ bot.on('text', async (ctx, next) => {
                     await ctx.reply(cementCardBuyer(it), { parse_mode: 'Markdown' });
                     CementSeller.findByIdAndUpdate(it._id, { $inc: { viewCount: 1 } }).catch(() => {});
                 }
-                await ctx.reply(supportLine, { parse_mode: 'Markdown', ...mainKb });
+                await ctx.reply(
+                    supportLine,
+                    {
+                        parse_mode: 'Markdown',
+                        ...Markup.inlineKeyboard([
+                            [Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?', 'REFRESH_CEM')],
+                            [Markup.button.callback('🏠 ወደ ዋና ማውጫ', 'go_home')]
+                        ])
+                    }
+                );
             }
             return;
         }
@@ -1633,15 +1670,20 @@ bot.on('text', async (ctx, next) => {
         if (action === 'BUY_STEEL_3') {
             const phone = safePhone(text);
             const { type, location } = ctx.session.buySteel;
+            // Save phone for "more options" refresh
+            ctx.session.buySteel.phone = phone;
             const typeRx = searchRx(type);
             const locRx  = searchRx(location);
 
-            let results = await SteelSeller.find({
+            let raw = await SteelSeller.find({
                 type: typeRx, address: locRx, status: 'active'
-            }).sort({ price: 1 }).limit(5).lean();
+            }).sort({ price: 1 }).limit(20).lean();
 
-            if (!results.length)
-                results = await SteelSeller.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(5).lean();
+            if (!raw.length)
+                raw = await SteelSeller.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(20).lean();
+
+            // Fair shuffle within same-price groups, show up to 4
+            const results = fairShuffle(raw).slice(0, 4);
 
             logSearch(ctx, '🟥 ብረት ፈላጊ', `${type} — ${location}`, phone);
             ctx.session.action = null;
@@ -1664,7 +1706,16 @@ bot.on('text', async (ctx, next) => {
                     await ctx.reply(steelCardBuyer(it), { parse_mode: 'Markdown' });
                     SteelSeller.findByIdAndUpdate(it._id, { $inc: { viewCount: 1 } }).catch(() => {});
                 }
-                await ctx.reply(supportLine, { parse_mode: 'Markdown', ...mainKb });
+                await ctx.reply(
+                    supportLine,
+                    {
+                        parse_mode: 'Markdown',
+                        ...Markup.inlineKeyboard([
+                            [Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?', 'REFRESH_STL')],
+                            [Markup.button.callback('🏠 ወደ ዋና ማውጫ', 'go_home')]
+                        ])
+                    }
+                );
             }
             return;
         }
@@ -1683,15 +1734,20 @@ bot.on('text', async (ctx, next) => {
         if (action === 'RENT_MACHINERY_3') {
             const phone = safePhone(text);
             const { type, location } = ctx.session.rentMachinery;
+            // Save phone for "more options" refresh
+            ctx.session.rentMachinery.phone = phone;
             const typeRx = searchRx(type);
             const locRx  = searchRx(location);
 
-            let results = await MachineryLeasor.find({
+            let raw = await MachineryLeasor.find({
                 type: typeRx, address: locRx, status: 'active'
-            }).sort({ price: 1 }).limit(5).lean();
+            }).sort({ price: 1 }).limit(20).lean();
 
-            if (!results.length)
-                results = await MachineryLeasor.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(5).lean();
+            if (!raw.length)
+                raw = await MachineryLeasor.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(20).lean();
+
+            // Fair shuffle within same-price groups, show up to 4
+            const results = fairShuffle(raw).slice(0, 4);
 
             logSearch(ctx, '🔹 ማሽነሪ ፈላጊ', `${type} — ${location}`, phone);
             ctx.session.action = null;
@@ -1714,7 +1770,16 @@ bot.on('text', async (ctx, next) => {
                     await ctx.reply(macCardBuyer(it), { parse_mode: 'Markdown' });
                     MachineryLeasor.findByIdAndUpdate(it._id, { $inc: { viewCount: 1 } }).catch(() => {});
                 }
-                await ctx.reply(supportLine, { parse_mode: 'Markdown', ...mainKb });
+                await ctx.reply(
+                    supportLine,
+                    {
+                        parse_mode: 'Markdown',
+                        ...Markup.inlineKeyboard([
+                            [Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?', 'REFRESH_MAC')],
+                            [Markup.button.callback('🏠 ወደ ዋና ማውጫ', 'go_home')]
+                        ])
+                    }
+                );
             }
             return;
         }
@@ -1754,8 +1819,14 @@ bot.on('text', async (ctx, next) => {
             const cargo = text;
             const phone = ctx.session.rentTruck.phone;
             const { type, route } = ctx.session.rentTruck;
+            // Save cargo for refresh
+            ctx.session.rentTruck.cargo = cargo;
 
-            const results = await findTruck(type, route);
+            const raw = await findTruck(type, route);
+
+            // Shuffle all results (trucks have no price, so shuffle all randomly for fairness)
+            const shuffled = [...raw].sort(() => Math.random() - 0.5);
+            const results  = shuffled.slice(0, 4);
 
             logSearch(ctx, '🚚 ትራክ ፈላጊ', `${type} — ${route} — ${cargo}`, phone);
             ctx.session.action = null;
@@ -1776,11 +1847,21 @@ bot.on('text', async (ctx, next) => {
                 );
                 for (const it of results)
                     await ctx.reply(truckCardBuyer(it), { parse_mode: 'Markdown' });
-                await ctx.reply(supportLine, { parse_mode: 'Markdown', ...mainKb });
 
                 // Increment rentedCount and viewCount
                 for (const it of results)
                     TruckLeasor.findByIdAndUpdate(it._id, { $inc: { rentedCount: 1, viewCount: 1 } }).catch(() => {});
+
+                await ctx.reply(
+                    supportLine,
+                    {
+                        parse_mode: 'Markdown',
+                        ...Markup.inlineKeyboard([
+                            [Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?', 'REFRESH_TRK')],
+                            [Markup.button.callback('🏠 ወደ ዋና ማውጫ', 'go_home')]
+                        ])
+                    }
+                );
             }
             return;
         }
@@ -1794,6 +1875,99 @@ bot.on('text', async (ctx, next) => {
 // Fuzzy hint callbacks
 bot.action('fuzzy_hint_yes', async ctx => { ctx.answerCbQuery().catch(() => {}); });
 bot.action('fuzzy_no',       async ctx => { ctx.answerCbQuery('እሺ!').catch(() => {}); });
+
+// ──────────────────────────────────────────────────────────
+// REFRESH — ሌላ አማራጭ (re-shuffle and show different 4 results)
+// ──────────────────────────────────────────────────────────
+async function refreshResults(ctx, Model, sessionKey, cardFn, logCategory, locationField, refreshAction, emoji, label) {
+    ctx.answerCbQuery('🔄 ሌላ አማራጭ እየፈለግን...').catch(() => {});
+    const saved = ctx.session[sessionKey];
+    if (!saved) return ctx.reply('⚠️ ፍለጋ ቢደፈፋ ዳግም ይሞክሩ።', mainKb);
+
+    const { type, location, phone } = saved;
+    const typeRx = searchRx(type);
+    const locRx  = searchRx(location || '');
+
+    let raw = await Model.find({
+        type: typeRx, [locationField]: locRx, status: 'active'
+    }).sort({ price: 1 }).limit(20).lean();
+    if (!raw.length)
+        raw = await Model.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(20).lean();
+
+    if (!raw.length)
+        return ctx.reply(`😔 *ሌላ አማራጭ አልተገኘም።*\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``, { parse_mode: 'Markdown', ...mainKb });
+
+    const results = fairShuffle(raw).slice(0, 4);
+
+    logSearch(ctx, logCategory, `${type} — ${location} [refresh]`, phone);
+
+    await ctx.reply(
+        `🔄 *${results.length} አዲስ አማራጭ ተገኘ!* ${emoji}\n\n📞 ስልክዎ: \`${phone}\``,
+        { parse_mode: 'Markdown' }
+    );
+    for (const it of results) {
+        await ctx.reply(cardFn(it), { parse_mode: 'Markdown' });
+        Model.findByIdAndUpdate(it._id, { $inc: { viewCount: 1 } }).catch(() => {});
+    }
+    await ctx.reply(
+        `_ከዚህ በኋላ ሌላ አማራጭ ለማየት ቁልፉን ይጫኑ:_`,
+        {
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+                [Markup.button.callback(`🔄 ሌላ አማራጭ ይፈልጋሉ?`, refreshAction)],
+                [Markup.button.callback('🏠 ወደ ዋና ማውጫ', 'go_home')]
+            ])
+        }
+    );
+}
+
+bot.action('REFRESH_CEM', ctx =>
+    refreshResults(ctx, CementSeller, 'buyCement', cementCardBuyer, '🧱 ሲሚንቶ ፈላጊ', 'location', 'REFRESH_CEM', '🧱', 'ሲሚንቶ')
+);
+bot.action('REFRESH_STL', ctx =>
+    refreshResults(ctx, SteelSeller, 'buySteel', steelCardBuyer, '🟥 ብረት ፈላጊ', 'address', 'REFRESH_STL', '🟥', 'ብረት')
+);
+bot.action('REFRESH_MAC', ctx =>
+    refreshResults(ctx, MachineryLeasor, 'rentMachinery', macCardBuyer, '🔹 ማሽነሪ ፈላጊ', 'address', 'REFRESH_MAC', '🔹', 'ማሽነሪ')
+);
+
+// Truck refresh — trucks have no price field so we shuffle all results randomly
+bot.action('REFRESH_TRK', async ctx => {
+    ctx.answerCbQuery('🔄 ሌላ አማራጭ እየፈለግን...').catch(() => {});
+    const saved = ctx.session.rentTruck;
+    if (!saved) return ctx.reply('⚠️ ፍለጋ ቢደፈፋ ዳግም ይሞክሩ።', mainKb);
+
+    const { type, route, phone } = saved;
+    const raw = await findTruck(type, route);
+
+    if (!raw.length)
+        return ctx.reply(`😔 *ሌላ አማራጭ አልተገኘም።*\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``, { parse_mode: 'Markdown', ...mainKb });
+
+    // Full random shuffle — no price ordering for trucks
+    const shuffled = [...raw].sort(() => Math.random() - 0.5);
+    const results  = shuffled.slice(0, 4);
+
+    logSearch(ctx, '🚚 ትራክ ፈላጊ', `${type} — ${route} [refresh]`, phone);
+
+    await ctx.reply(
+        `🔄 *${results.length} አዲስ አማራጭ ተገኘ!* 🚚\n\n📞 ስልክዎ: \`${phone}\``,
+        { parse_mode: 'Markdown' }
+    );
+    for (const it of results) {
+        await ctx.reply(truckCardBuyer(it), { parse_mode: 'Markdown' });
+        TruckLeasor.findByIdAndUpdate(it._id, { $inc: { viewCount: 1 } }).catch(() => {});
+    }
+    await ctx.reply(
+        `_ከዚህ በኋላ ሌላ አማራጭ ለማየት ቁልፉን ይጫኑ:_`,
+        {
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+                [Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?', 'REFRESH_TRK')],
+                [Markup.button.callback('🏠 ወደ ዋና ማውጫ', 'go_home')]
+            ])
+        }
+    );
+});
 
 // ──────────────────────────────────────────────────────────
 // HTTP KEEP-ALIVE SERVER (for Render)
