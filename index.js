@@ -635,9 +635,9 @@ function cementCard(it, adminView = false) {
     return (
         `🧱 *${esc(it.companyName || it.type)}*\n` +
         `▸ አይነት  ፦ ${esc(it.type)}\n` +
-        `▸ 📍 ቦታ  ፦ ${esc(it.location)}\n` +
+        `▸ ቦታ  ፦ ${esc(it.location)}\n` +
         `▸ 📞 ስልክ ፦ \`${esc(it.phone)}\`\n` +
-        `▸ 💰 ዋጋ  ፦ *${fmt(it.price)} ብር/ኩንታል*\n` +
+        `▸ ዋጋ  ፦ *${fmt(it.price)} ብር/ኩንታል*\n` +
         `▸ ሁኔታ   ፦ ${badge}`
     );
 }
@@ -648,9 +648,9 @@ function steelCard(it, adminView = false) {
     const unit = it.priceUnit || 'ብር/ኪሎ';
     return (
         `🟥 *${esc(it.type)}*\n` +
-        `▸ 📍 አድራሻ ፦ ${esc(it.address)}\n` +
+        `▸ አድራሻ ፦ ${esc(it.address)}\n` +
         `▸ 📞 ስልክ  ፦ \`${esc(it.phone)}\`\n` +
-        `▸ 💰 ዋጋ   ፦ *${fmt(it.price)} ${unit}*\n` +
+        `▸ ዋጋ   ፦ *${fmt(it.price)} ${unit}*\n` +
         `▸ ሁኔታ    ፦ ${badge}`
     );
 }
@@ -661,9 +661,9 @@ function macCard(it, adminView = false) {
     const unit = it.rentUnit || 'በቀን';
     return (
         `🔹 *${esc(it.type)}*\n` +
-        `▸ 📍 አድራሻ ፦ ${esc(it.address)}\n` +
+        `▸ አድራሻ ፦ ${esc(it.address)}\n` +
         `▸ 📞 ስልክ  ፦ \`${esc(it.phone)}\`\n` +
-        `▸ 💰 ኪራይ  ፦ *${fmt(it.price)} ብር ${unit}*\n` +
+        `▸ ኪራይ  ፦ *${fmt(it.price)} ብር ${unit}*\n` +
         `▸ ሁኔታ    ፦ ${badge}`
     );
 }
