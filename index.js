@@ -1569,26 +1569,26 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_CEMENT_1' || action === 'REG_CEMENT_1_TEXT') {
             ctx.session.cementData = { type: text };
             ctx.session.action = 'REG_CEMENT_2';
-            return askChoice(ctx, '`[2/5]` 📍 *ሲሚንቶው የሚሸጥበት ቦታ ይምረጡ:*', LOCATIONS, 'SLOC_', 4);
+            return askChoice(ctx, '`[2/5]` 📍 *ሲሚንቶው የሚሸጥበት ቦታ ይምረጡ:*', LOCATIONS, 'SLOC_', 4, 'SBACK_CEM_1');
         }
         if (action === 'REG_CEMENT_2' || action === 'REG_CEMENT_2_TEXT') {
             ctx.session.cementData.location = text;
             ctx.session.action = 'REG_CEMENT_3';
-            return sendStep(ctx, '`[3/5]` 🏭 *የድርጅቱን ስም ያስገቡ:*\nለምሳሌ: ሀበሻ ንግድ ቤት');
+            return sendStep(ctx, '`[3/5]` 🏭 *የድርጅቱን ስም ያስገቡ:*\nለምሳሌ: ሀበሻ ንግድ ቤት', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_CEM_2')]]));
         }
         if (action === 'REG_CEMENT_3') {
             ctx.session.cementData.companyName = text;
             ctx.session.action = 'REG_CEMENT_4';
-            return sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_CEM_3')]]));
         }
         if (action === 'REG_CEMENT_4') {
             ctx.session.cementData.phone = safePhone(text);
             ctx.session.action = 'REG_CEMENT_5';
-            return sendStep(ctx, '`[5/5]` 💰 *ዋጋ በኩንታል ያስገቡ:*\nቁጥር ብቻ ይጻፉ — ለምሳሌ: 1200 ወይም 1500');
+            return sendStep(ctx, '`[5/5]` 💰 *ዋጋ በኩንታል ያስገቡ:*\nቁጥር ብቻ ይጻፉ — ለምሳሌ: 1200 ወይም 1500', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_CEM_4')]]));
         }
         if (action === 'REG_CEMENT_5') {
             const price = safePrice(text);
-            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 650 ወይም 1200');
+            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 650 ወይም 1200', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_CEM_4')]]));
             const doc = await CementSeller.create({ ...ctx.session.cementData, userId: uid, price, status: 'active' });
             ctx.session.action = null;
             await ctx.reply(cementCard(doc.toObject()), { parse_mode: 'Markdown', ...cementItemKb(doc._id) });
@@ -1599,21 +1599,21 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_STEEL_1' || action === 'REG_STEEL_1_TEXT') {
             ctx.session.steelData = { type: text };
             ctx.session.action = 'REG_STEEL_2';
-            return sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ያስገቡ:*\nብረቱ የሚሸጥበት ቦታ — ለምሳሌ: ቦሌ፣ አዲስ አበባ');
+            return sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ያስገቡ:*\nብረቱ የሚሸጥበት ቦታ — ለምሳሌ: ቦሌ፣ አዲስ አበባ', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_STL_1')]]));
         }
         if (action === 'REG_STEEL_2') {
             ctx.session.steelData.address = text;
             ctx.session.action = 'REG_STEEL_3';
-            return sendStep(ctx, '`[3/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[3/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_STL_2')]]));
         }
         if (action === 'REG_STEEL_3') {
             ctx.session.steelData.phone = safePhone(text);
             ctx.session.action = 'REG_STEEL_4';
-            return sendStep(ctx, '`[4/4]` 💰 *ዋጋ ፐር ኪሎ ግራም ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 55 ወይም 70');
+            return sendStep(ctx, '`[4/4]` 💰 *ዋጋ ፐር ኪሎ ግራም ያስገቡ:*\nቁጥር ብቻ ብር — ለምሳሌ: 55 ወይም 70', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_STL_3')]]));
         }
         if (action === 'REG_STEEL_4') {
             const price = safePrice(text);
-            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 55 ወይም 70');
+            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 55 ወይም 70', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_STL_3')]]));
             const doc = await SteelSeller.create({ ...ctx.session.steelData, userId: uid, price, priceUnit: 'ብር/ኪሎ', status: 'active' });
             ctx.session.action = null;
             await ctx.reply(steelCard(doc.toObject()), { parse_mode: 'Markdown', ...steelItemKb(doc._id) });
@@ -1624,12 +1624,12 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_MACHINERY_1' || action === 'REG_MACHINERY_1_TEXT') {
             ctx.session.machineryData = { type: text };
             ctx.session.action = 'REG_MACHINERY_2';
-            return sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ያስገቡ:*\nማሽነሪው የሚኖርበት ቦታ — ለምሳሌ: አዳማ');
+            return sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ያስገቡ:*\nማሽነሪው የሚኖርበት ቦታ — ለምሳሌ: አዳማ', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_MAC_1')]]));
         }
         if (action === 'REG_MACHINERY_2') {
             ctx.session.machineryData.address = text;
             ctx.session.action = 'REG_MACHINERY_3';
-            return sendStep(ctx, '`[3/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[3/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_MAC_2')]]));
         }
         if (action === 'REG_MACHINERY_3') {
             ctx.session.machineryData.phone = safePhone(text);
@@ -1641,7 +1641,8 @@ bot.on('text', async (ctx, next) => {
                     parse_mode: 'Markdown',
                     ...Markup.inlineKeyboard([
                         [Markup.button.callback('📅 በቀን', 'MACUNIT_day'),
-                         Markup.button.callback('🗓️ በወር', 'MACUNIT_month')]
+                         Markup.button.callback('🗓️ በወር', 'MACUNIT_month')],
+                        [Markup.button.callback('⬅️ Back', 'SBACK_MAC_3')]
                     ])
                 }
             );
@@ -1650,7 +1651,7 @@ bot.on('text', async (ctx, next) => {
         }
         if (action === 'REG_MACHINERY_4') {
             const price = safePrice(text);
-            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 15000');
+            if (!price) return sendStep(ctx, '⚠️ ትክክለኛ ቁጥር ያስገቡ!\nለምሳሌ: 15000', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_MAC_UNIT')]]));
             const unit = ctx.session.machineryData.rentUnit || 'በቀን';
             const doc = await MachineryLeasor.create({ ...ctx.session.machineryData, userId: uid, price, rentUnit: unit, status: 'active' });
             ctx.session.action = null;
@@ -1662,7 +1663,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_TRUCK_1' || action === 'REG_TRUCK_1_TEXT') {
             ctx.session.truckData = { type: text };
             ctx.session.action = 'REG_TRUCK_2';
-            return sendStep(ctx, '`[2/4]` 🚗 *የመኪናው ታርጋ ቁጥር ያስገቡ:*\nለምሳሌ: AA-12345');
+            return sendStep(ctx, '`[2/4]` 🚗 *የመኪናው ታርጋ ቁጥር ያስገቡ:*\nለምሳሌ: AA-12345', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_TRK_1')]]));
         }
         if (action === 'REG_TRUCK_2') {
             ctx.session.truckData.plate = text;
@@ -1672,9 +1673,10 @@ bot.on('text', async (ctx, next) => {
                 '`[3/4]` 🛣️ *የጉዞ ዓይነት ይምረጡ:*',
                 {
                     parse_mode: 'Markdown',
-                    ...require('telegraf').Markup.inlineKeyboard([
-                        [require('telegraf').Markup.button.callback('🏙️ አዲስ አበባ ከተማ ውስጥ', 'REGTRKMODE_AA')],
-                        [require('telegraf').Markup.button.callback('🛣️ ከአንድ ከተማ ወደ ሌላ ከተማ', 'REGTRKMODE_CITY')]
+                    ...Markup.inlineKeyboard([
+                        [Markup.button.callback('🏙️ አዲስ አበባ ከተማ ውስጥ', 'REGTRKMODE_AA')],
+                        [Markup.button.callback('🛣️ ከአንድ ከተማ ወደ ሌላ ከተማ', 'REGTRKMODE_CITY')],
+                        [Markup.button.callback('⬅️ Back', 'SBACK_TRK_2')]
                     ])
                 }
             );
@@ -1684,7 +1686,7 @@ bot.on('text', async (ctx, next) => {
         if (action === 'REG_TRUCK_3') {
             ctx.session.truckData.route = text;
             ctx.session.action = 'REG_TRUCK_4';
-            return sendStep(ctx, '`[4/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567');
+            return sendStep(ctx, '`[4/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_TRK_3')]]));
         }
         if (action === 'REG_TRUCK_4') {
             ctx.session.truckData.phone = safePhone(text);
@@ -1983,6 +1985,106 @@ bot.on('text', async (ctx, next) => {
 
 // Fuzzy hint callbacks
 bot.action('fuzzy_hint_yes', async ctx => { ctx.answerCbQuery().catch(() => {}); });
+// ──────────────────────────────────────────────────────────
+// SELLER / LESSOR REGISTRATION — BACK BUTTON HANDLERS
+// ──────────────────────────────────────────────────────────
+
+// ── CEMENT BACK ──────────────────────────────────────────
+bot.action('SBACK_CEM_1', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_CEMENT_1'; ctx.session.cementData = {};
+    await askChoice(ctx, '🧱 `[1/5]` *የሲሚንቶ አይነት ይምረጡ:*', CEMENT_TYPES, 'CTYPE_', 4);
+});
+bot.action('SBACK_CEM_2', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_CEMENT_2';
+    await askChoice(ctx, '`[2/5]` 📍 *ሲሚንቶው የሚሸጥበት ቦታ ይምረጡ:*', LOCATIONS, 'SLOC_', 4, 'SBACK_CEM_1');
+});
+bot.action('SBACK_CEM_3', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_CEMENT_3';
+    await sendStep(ctx, '`[3/5]` 🏭 *የድርጅቱን ስም ያስገቡ:*\nለምሳሌ: ሀበሻ ንግድ ቤት', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_CEM_2')]]));
+});
+bot.action('SBACK_CEM_4', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_CEMENT_4';
+    await sendStep(ctx, '`[4/5]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_CEM_3')]]));
+});
+
+// ── STEEL BACK ───────────────────────────────────────────
+bot.action('SBACK_STL_1', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_STEEL_1'; ctx.session.steelData = {};
+    await askChoice(ctx, '🟥 `[1/4]` *የብረት አይነት ይምረጡ:*', STEEL_TYPES, 'STYPE_', 3);
+});
+bot.action('SBACK_STL_2', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_STEEL_2';
+    await sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ያስገቡ:*\nብረቱ የሚሸጥበት ቦታ — ለምሳሌ: ቦሌ፣ አዲስ አበባ', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_STL_1')]]));
+});
+bot.action('SBACK_STL_3', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_STEEL_3';
+    await sendStep(ctx, '`[3/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_STL_2')]]));
+});
+
+// ── MACHINERY BACK ───────────────────────────────────────
+bot.action('SBACK_MAC_1', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_MACHINERY_1'; ctx.session.machineryData = {};
+    await askChoice(ctx, '🔹 `[1/4]` *የማሽነሪ አይነት ይምረጡ:*', MACHINERY_TYPES, 'MTYPE_', 2);
+});
+bot.action('SBACK_MAC_2', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_MACHINERY_2';
+    await sendStep(ctx, '`[2/4]` 📍 *አድራሻዎን ያስገቡ:*\nማሽነሪው የሚኖርበት ቦታ — ለምሳሌ: አዳማ', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_MAC_1')]]));
+});
+bot.action('SBACK_MAC_3', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_MACHINERY_3';
+    await sendStep(ctx, '`[3/4]` 📞 *ስልክ ቁጥርዎን ያስገቡ:*\nለምሳሌ: 0911234567', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_MAC_2')]]));
+});
+bot.action('SBACK_MAC_UNIT', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_MACHINERY_UNIT';
+    await deletePrev(ctx);
+    const sent = await ctx.reply('`[4/5]` 📅 *ኪራይ ዓይነት ይምረጡ:*', {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([
+            [Markup.button.callback('📅 በቀን', 'MACUNIT_day'), Markup.button.callback('🗓️ በወር', 'MACUNIT_month')],
+            [Markup.button.callback('⬅️ Back', 'SBACK_MAC_3')]
+        ])
+    });
+    ctx.session.lastMsgId = sent.message_id;
+});
+
+// ── TRUCK BACK ───────────────────────────────────────────
+bot.action('SBACK_TRK_1', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_TRUCK_1'; ctx.session.truckData = {};
+    await askChoice(ctx, '🚚 `[1/4]` *የመኪናውን አይነት ይምረጡ:*', TRUCK_TYPES, 'TKTYPE_', 2);
+});
+bot.action('SBACK_TRK_2', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_TRUCK_2';
+    await sendStep(ctx, '`[2/4]` 🚗 *የመኪናው ታርጋ ቁጥር ያስገቡ:*\nለምሳሌ: AA-12345', Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back', 'SBACK_TRK_1')]]));
+});
+bot.action('SBACK_TRK_3', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    ctx.session.action = 'REG_TRUCK_ROUTE_MODE';
+    await deletePrev(ctx);
+    const sent = await ctx.reply('`[3/4]` 🛣️ *የጉዞ ዓይነት ይምረጡ:*', {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([
+            [Markup.button.callback('🏙️ አዲስ አበባ ከተማ ውስጥ', 'REGTRKMODE_AA')],
+            [Markup.button.callback('🛣️ ከአንድ ከተማ ወደ ሌላ ከተማ', 'REGTRKMODE_CITY')],
+            [Markup.button.callback('⬅️ Back', 'SBACK_TRK_2')]
+        ])
+    });
+    ctx.session.lastMsgId = sent.message_id;
+});
+
+
 bot.action('fuzzy_no',       async ctx => { ctx.answerCbQuery('እሺ!').catch(() => {}); });
 
 // ──────────────────────────────────────────────────────────
