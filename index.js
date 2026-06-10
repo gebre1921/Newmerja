@@ -168,6 +168,19 @@ const sessionSchema = new mongoose.Schema({
     data: { type: mongoose.Schema.Types.Mixed, default: {} }
 });
 
+// Global main-button visibility state (persisted in a special BotSession key)
+let mainButtonsHidden = false;
+async function loadMainHiddenState() {
+    try {
+        const doc = await mongoose.model('BotSession', sessionSchema).findOne({ key: '__main_hidden__' }).lean();
+        if (doc?.data?.hidden) mainButtonsHidden = true;
+    } catch {}
+}
+async function saveMainHiddenState(val) {
+    mainButtonsHidden = val;
+    BotSession.updateOne({ key: '__main_hidden__' }, { $set: { data: { hidden: val } } }, { upsert: true }).catch(() => {});
+}
+
 const CementSeller    = mongoose.model('CementSeller',    cementSchema);
 const SteelSeller     = mongoose.model('SteelSeller',     steelSchema);
 const MachineryLeasor = mongoose.model('MachineryLeasor', machinerySchema);
@@ -195,7 +208,7 @@ async function connectMongo() {
 }
 mongoose.connection.on('disconnected', () => setTimeout(connectMongo, 3000));
 mongoose.connection.on('error', err => console.error('Mongo:', err));
-connectMongo();
+connectMongo().then(() => loadMainHiddenState()).catch(() => {});
 
 // ──────────────────────────────────────────────────────────
 // BOT + SESSION
@@ -584,8 +597,8 @@ function cementCardBuyer(it) {
     return (
         `🧱 *${esc(it.companyName || it.type)}*\n` +
         `▸ አይነት ፦ ${esc(it.type)}\n` +
-        `▸ 📍 ቦታ  ፦ ${esc(it.location)}\n` +
-        `▸ 💰 ዋጋ  ፦ *${fmt(it.price)} ብር/ኩንታል*\n` +
+        `▸ ቦታ  ፦ ${esc(it.location)}\n` +
+        `▸ ዋጋ  ፦ *${fmt(it.price)} ብር/ኩንታል*\n` +
         `▸ ${statusBadge(it.status)}`
     );
 }
@@ -593,8 +606,8 @@ function steelCardBuyer(it) {
     const unit = it.priceUnit || 'ብር/ኪሎ';
     return (
         `🟥 *${esc(it.type)}*\n` +
-        `▸ 📍 አድራሻ ፦ ${esc(it.address)}\n` +
-        `▸ 💰 ዋጋ    ፦ *${fmt(it.price)} ${unit}*\n` +
+        `▸ አድራሻ ፦ ${esc(it.address)}\n` +
+        `▸ ዋጋ    ፦ *${fmt(it.price)} ${unit}*\n` +
         `▸ ${statusBadge(it.status)}`
     );
 }
@@ -602,8 +615,8 @@ function macCardBuyer(it) {
     const unit = it.rentUnit || 'በቀን';
     return (
         `🔹 *${esc(it.type)}*\n` +
-        `▸ 📍 አድራሻ ፦ ${esc(it.address)}\n` +
-        `▸ 💰 ኪራይ  ፦ *${fmt(it.price)} ብር ${unit}*\n` +
+        `▸ አድራሻ ፦ ${esc(it.address)}\n` +
+        `▸ ኪራይ  ፦ *${fmt(it.price)} ብር ${unit}*\n` +
         `▸ ${statusBadge(it.status)}`
     );
 }
@@ -698,13 +711,19 @@ const truckItemKb = id => Markup.inlineKeyboard([
 // ──────────────────────────────────────────────────────────
 // MAIN KEYBOARD
 // ──────────────────────────────────────────────────────────
-const mainKb = Markup.keyboard([
-    ['🧱 ሲሚንቶ ለመሸጥ',    '🧱 ሲሚንቶ ለመግዛት'],
-    ['🚚 መኪና ለማከራየት',   '🚚 መኪና ለመከራየት'],
-    ['🟥 ብረት ለመሸጥ',     '🟥 ብረት ለመግዛት'],
-    ['🔹 ማሽነሪ ለማከራየት', '🔹 ማሽነሪ ለመከራየት'],
-    ['📞 አግኙን']
-]).resize();
+function getMainKb() {
+    if (mainButtonsHidden) {
+        return Markup.keyboard([['📞 አግኙን']]).resize();
+    }
+    return Markup.keyboard([
+        ['🧱 ሲሚንቶ ለመሸጥ',    '🧱 ሲሚንቶ ለመግዛት'],
+        ['🚚 መኪና ለማከራየት',   '🚚 መኪና ለመከራየት'],
+        ['🟥 ብረት ለመሸጥ',     '🟥 ብረት ለመግዛት'],
+        ['🔹 ማሽነሪ ለማከራየት', '🔹 ማሽነሪ ለመከራየት'],
+        ['📞 አግኙን']
+    ]).resize();
+}
+// mainKb replaced by getMainKb() calls throughout
 
 // ──────────────────────────────────────────────────────────
 // WELCOME TEXT
@@ -766,7 +785,7 @@ function getObjId(match) {
 bot.start(ctx => {
     ctx.session = {};
     const name = sanitize(ctx.from.first_name || 'ጎብኚ');
-    ctx.reply(welcomeText(name), { parse_mode: 'Markdown', ...mainKb });
+    ctx.reply(welcomeText(name), { parse_mode: 'Markdown', ...getMainKb() });
 });
 
 bot.hears('📞 አግኙን', async ctx => {
@@ -784,7 +803,7 @@ bot.action('go_home', async ctx => {
     ctx.answerCbQuery().catch(() => {});
     ctx.session.action = null;
     const name = sanitize(ctx.from.first_name || 'ጎብኚ');
-    await ctx.reply(welcomeText(name), { parse_mode: 'Markdown', ...mainKb });
+    await ctx.reply(welcomeText(name), { parse_mode: 'Markdown', ...getMainKb() });
 });
 
 // ──────────────────────────────────────────────────────────
@@ -792,6 +811,7 @@ bot.action('go_home', async ctx => {
 // ──────────────────────────────────────────────────────────
 bot.command('admin_panel', async ctx => {
     if (!isAdmin(ctx)) return ctx.reply('⛔ ፈቃድ የለዎትም!');
+    const hideLabel = mainButtonsHidden ? '🟢 Main Buttons አሳይ' : '🔴 Main Buttons ደብቅ';
     ctx.reply(
         `🔧 *አድሚን ፓናል* — ዘርፍ ይምረጡ:`,
         {
@@ -806,10 +826,19 @@ bot.command('admin_panel', async ctx => {
                  Markup.button.callback('👁️ ብረት — ተፈላጊ',  'rep_stl_views')],
                 [Markup.button.callback('👁️ ማሽነሪ — ተፈላጊ', 'rep_mac_views'),
                  Markup.button.callback('👁️ ትራክ — ተፈላጊ',  'rep_trk_views')],
-                [Markup.button.callback('🗑️ ማጥፊያ', 'admin_del')]
+                [Markup.button.callback('🗑️ ማጥፊያ', 'admin_del')],
+                [Markup.button.callback(hideLabel, 'admin_toggle_main')]
             ])
         }
     );
+});
+
+bot.action('admin_toggle_main', async ctx => {
+    if (!isAdmin(ctx)) return ctx.answerCbQuery('⛔').catch(() => {});
+    await saveMainHiddenState(!mainButtonsHidden);
+    const state = mainButtonsHidden ? 'ደብቅ (hidden)' : 'አሳይ (visible)';
+    ctx.answerCbQuery(`✅ Main buttons: ${state}`).catch(() => {});
+    await ctx.reply(`✅ Main buttons ሁኔታ ተቀይሯል: *${state}*`, { parse_mode: 'Markdown' });
 });
 
 const adminDelKb = (prefix, id) => Markup.inlineKeyboard([
@@ -1423,7 +1452,7 @@ bot.on('text', async (ctx, next) => {
             if (!doc) return ctx.reply('❗ ፈቃድ የለዎትም ወይም ዕቃው አልተገኘም።');
             ctx.session.action = null;
             await ctx.reply(cementCard(doc.toObject()), { parse_mode: 'Markdown', ...cementItemKb(doc._id) });
-            return ctx.reply('✅ ዋጋ ተቀይሯል!' + sellerSupportLine, { parse_mode: 'Markdown', ...mainKb });
+            return ctx.reply('✅ ዋጋ ተቀይሯል!' + sellerSupportLine, { parse_mode: 'Markdown', ...getMainKb() });
         }
 
         if (action === 'UPD_STL_PRICE') {
@@ -1436,7 +1465,7 @@ bot.on('text', async (ctx, next) => {
             if (!doc) return ctx.reply('❗ ፈቃድ የለዎትም ወይም ዕቃው አልተገኘም።');
             ctx.session.action = null;
             await ctx.reply(steelCard(doc.toObject()), { parse_mode: 'Markdown', ...steelItemKb(doc._id) });
-            return ctx.reply('✅ ዋጋ ተቀይሯል!' + sellerSupportLine, { parse_mode: 'Markdown', ...mainKb });
+            return ctx.reply('✅ ዋጋ ተቀይሯል!' + sellerSupportLine, { parse_mode: 'Markdown', ...getMainKb() });
         }
 
         if (action === 'UPD_MAC_PRICE') {
@@ -1449,7 +1478,7 @@ bot.on('text', async (ctx, next) => {
             if (!doc) return ctx.reply('❗ ፈቃድ የለዎትም ወይም ዕቃው አልተገኘም።');
             ctx.session.action = null;
             await ctx.reply(macCard(doc.toObject()), { parse_mode: 'Markdown', ...macItemKb(doc._id) });
-            return ctx.reply('✅ ዋጋ ተቀይሯል!' + sellerSupportLine, { parse_mode: 'Markdown', ...mainKb });
+            return ctx.reply('✅ ዋጋ ተቀይሯል!' + sellerSupportLine, { parse_mode: 'Markdown', ...getMainKb() });
         }
 
         if (action === 'UPD_TRK_ROUTE') {
@@ -1460,7 +1489,7 @@ bot.on('text', async (ctx, next) => {
             if (!doc) return ctx.reply('❗ ፈቃድ የለዎትም ወይም ዕቃው አልተገኘም።');
             ctx.session.action = null;
             await ctx.reply(truckCard(doc.toObject()), { parse_mode: 'Markdown', ...truckItemKb(doc._id) });
-            return ctx.reply('✅ መስመር ተቀይሯል!' + sellerSupportLine, { parse_mode: 'Markdown', ...mainKb });
+            return ctx.reply('✅ መስመር ተቀይሯል!' + sellerSupportLine, { parse_mode: 'Markdown', ...getMainKb() });
         }
 
         // ══ CEMENT REGISTRATION ════════════════════════════
@@ -1490,7 +1519,7 @@ bot.on('text', async (ctx, next) => {
             const doc = await CementSeller.create({ ...ctx.session.cementData, userId: uid, price, status: 'active' });
             ctx.session.action = null;
             await ctx.reply(cementCard(doc.toObject()), { parse_mode: 'Markdown', ...cementItemKb(doc._id) });
-            return ctx.reply('✅ *ምዝገባ ተጠናቋል!*' + sellerSupportLine, { parse_mode: 'Markdown', ...mainKb });
+            return ctx.reply('✅ *ምዝገባ ተጠናቋል!*' + sellerSupportLine, { parse_mode: 'Markdown', ...getMainKb() });
         }
 
         // ══ STEEL REGISTRATION ════════════════════════════
@@ -1515,7 +1544,7 @@ bot.on('text', async (ctx, next) => {
             const doc = await SteelSeller.create({ ...ctx.session.steelData, userId: uid, price, priceUnit: 'ብር/ኪሎ', status: 'active' });
             ctx.session.action = null;
             await ctx.reply(steelCard(doc.toObject()), { parse_mode: 'Markdown', ...steelItemKb(doc._id) });
-            return ctx.reply('✅ *ምዝገባ ተጠናቋል!*' + sellerSupportLine, { parse_mode: 'Markdown', ...mainKb });
+            return ctx.reply('✅ *ምዝገባ ተጠናቋል!*' + sellerSupportLine, { parse_mode: 'Markdown', ...getMainKb() });
         }
 
         // ══ MACHINERY REGISTRATION ════════════════════════
@@ -1553,7 +1582,7 @@ bot.on('text', async (ctx, next) => {
             const doc = await MachineryLeasor.create({ ...ctx.session.machineryData, userId: uid, price, rentUnit: unit, status: 'active' });
             ctx.session.action = null;
             await ctx.reply(macCard(doc.toObject()), { parse_mode: 'Markdown', ...macItemKb(doc._id) });
-            return ctx.reply('✅ *ምዝገባ ተጠናቋል!*' + sellerSupportLine, { parse_mode: 'Markdown', ...mainKb });
+            return ctx.reply('✅ *ምዝገባ ተጠናቋል!*' + sellerSupportLine, { parse_mode: 'Markdown', ...getMainKb() });
         }
 
         // ══ TRUCK REGISTRATION ════════════════════════════
@@ -1589,7 +1618,7 @@ bot.on('text', async (ctx, next) => {
             const doc = await TruckLeasor.create({ ...ctx.session.truckData, userId: uid, status: 'active', rentedCount: 0 });
             ctx.session.action = null;
             await ctx.reply(truckCard(doc.toObject()), { parse_mode: 'Markdown', ...truckItemKb(doc._id) });
-            return ctx.reply('✅ *ምዝገባ ተጠናቋል!*' + sellerSupportLine, { parse_mode: 'Markdown', ...mainKb });
+            return ctx.reply('✅ *ምዝገባ ተጠናቋል!*' + sellerSupportLine, { parse_mode: 'Markdown', ...getMainKb() });
         }
 
         // ══ BUY CEMENT ════════════════════════════════════
@@ -1618,8 +1647,8 @@ bot.on('text', async (ctx, next) => {
             if (!raw.length)
                 raw = await CementSeller.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(20).lean();
 
-            // Fair shuffle within same-price groups, show up to 4
-            const results = fairShuffle(raw).slice(0, 4);
+            // Fair shuffle within same-price groups, show up to 3
+            const results = fairShuffle(raw).slice(0, 3);
 
             logSearch(ctx, '🧱 ሲሚንቶ ፈላጊ', `${type} — ${location}`, phone);
             ctx.session.action = null;
@@ -1629,7 +1658,7 @@ bot.on('text', async (ctx, next) => {
                 return ctx.reply(
                     `😔 *ይቅርታ!*\n\n*${esc(type)}* ሲሚንቶ *${esc(location)}* ቦታ ላይ አልተገኘም።\n\n` +
                     `📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,
-                    { parse_mode: 'Markdown', ...mainKb }
+                    { parse_mode: 'Markdown', ...getMainKb() }
                 );
             }
             if (results.length) {
@@ -1682,8 +1711,8 @@ bot.on('text', async (ctx, next) => {
             if (!raw.length)
                 raw = await SteelSeller.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(20).lean();
 
-            // Fair shuffle within same-price groups, show up to 4
-            const results = fairShuffle(raw).slice(0, 4);
+            // Fair shuffle within same-price groups, show up to 3
+            const results = fairShuffle(raw).slice(0, 3);
 
             logSearch(ctx, '🟥 ብረት ፈላጊ', `${type} — ${location}`, phone);
             ctx.session.action = null;
@@ -1693,7 +1722,7 @@ bot.on('text', async (ctx, next) => {
                 return ctx.reply(
                     `😔 *ይቅርታ!*\n\n*${esc(type)}* ብረት *${esc(location)}* ቦታ ላይ አልተገኘም።\n\n` +
                     `📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,
-                    { parse_mode: 'Markdown', ...mainKb }
+                    { parse_mode: 'Markdown', ...getMainKb() }
                 );
             }
             if (results.length) {
@@ -1746,8 +1775,12 @@ bot.on('text', async (ctx, next) => {
             if (!raw.length)
                 raw = await MachineryLeasor.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(20).lean();
 
-            // Fair shuffle within same-price groups, show up to 4
-            const results = fairShuffle(raw).slice(0, 4);
+            // Fair shuffle within same-price groups, show 1 at a time (fair rotation)
+            const allMac = fairShuffle(raw);
+            const macIdx = ctx.session.rentMachinery.rotateIdx || 0;
+            const results = allMac.length ? [allMac[macIdx % allMac.length]] : [];
+            ctx.session.rentMachinery.rotateIdx = (macIdx + 1) % Math.max(allMac.length, 1);
+            ctx.session.rentMachinery._allCount = allMac.length;
 
             logSearch(ctx, '🔹 ማሽነሪ ፈላጊ', `${type} — ${location}`, phone);
             ctx.session.action = null;
@@ -1757,7 +1790,7 @@ bot.on('text', async (ctx, next) => {
                 return ctx.reply(
                     `😔 *ይቅርታ!*\n\n*${esc(type)}* ማሽነሪ *${esc(location)}* ቦታ ላይ አልተገኘም።\n\n` +
                     `📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,
-                    { parse_mode: 'Markdown', ...mainKb }
+                    { parse_mode: 'Markdown', ...getMainKb() }
                 );
             }
             if (results.length) {
@@ -1824,9 +1857,12 @@ bot.on('text', async (ctx, next) => {
 
             const raw = await findTruck(type, route);
 
-            // Shuffle all results (trucks have no price, so shuffle all randomly for fairness)
-            const shuffled = [...raw].sort(() => Math.random() - 0.5);
-            const results  = shuffled.slice(0, 4);
+            // Show 1 truck at a time (fair rotation for fairness)
+            const allTrk = [...raw].sort(() => Math.random() - 0.5);
+            const trkIdx = ctx.session.rentTruck.rotateIdx || 0;
+            const results  = allTrk.length ? [allTrk[trkIdx % allTrk.length]] : [];
+            ctx.session.rentTruck.rotateIdx = (trkIdx + 1) % Math.max(allTrk.length, 1);
+            ctx.session.rentTruck._allCount = allTrk.length;
 
             logSearch(ctx, '🚚 ትራክ ፈላጊ', `${type} — ${route} — ${cargo}`, phone);
             ctx.session.action = null;
@@ -1836,7 +1872,7 @@ bot.on('text', async (ctx, next) => {
                 return ctx.reply(
                     `😔 *ይቅርታ!*\n\n*${esc(type)}* — *${esc(route)}* — *${esc(cargo)}*\n\nምንም መኪና አልተገኘም።\n\n` +
                     `📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,
-                    { parse_mode: 'Markdown', ...mainKb }
+                    { parse_mode: 'Markdown', ...getMainKb() }
                 );
             }
             if (results.length) {
@@ -1868,7 +1904,7 @@ bot.on('text', async (ctx, next) => {
 
     } catch (err) {
         console.error('State machine error:', err);
-        await ctx.reply('⚠️ ስህተት ተፈጥሯል። እባክዎ ዳግም ይሞክሩ።', mainKb);
+        await ctx.reply('⚠️ ስህተት ተፈጥሯል። እባክዎ ዳግም ይሞክሩ።', getMainKb());
     }
 });
 
@@ -1879,10 +1915,10 @@ bot.action('fuzzy_no',       async ctx => { ctx.answerCbQuery('እሺ!').catch((
 // ──────────────────────────────────────────────────────────
 // REFRESH — ሌላ አማራጭ (re-shuffle and show different 4 results)
 // ──────────────────────────────────────────────────────────
-async function refreshResults(ctx, Model, sessionKey, cardFn, logCategory, locationField, refreshAction, emoji, label) {
+async function refreshResults(ctx, Model, sessionKey, cardFn, logCategory, locationField, refreshAction, emoji, label, pageSize = 3) {
     ctx.answerCbQuery('🔄 ሌላ አማራጭ እየፈለግን...').catch(() => {});
     const saved = ctx.session[sessionKey];
-    if (!saved) return ctx.reply('⚠️ ፍለጋ ቢደፈፋ ዳግም ይሞክሩ።', mainKb);
+    if (!saved) return ctx.reply('⚠️ ፍለጋ ቢደፈፋ ዳግም ይሞክሩ።', getMainKb());
 
     const { type, location, phone } = saved;
     const typeRx = searchRx(type);
@@ -1895,9 +1931,18 @@ async function refreshResults(ctx, Model, sessionKey, cardFn, logCategory, locat
         raw = await Model.find({ type: typeRx, status: 'active' }).sort({ price: 1 }).limit(20).lean();
 
     if (!raw.length)
-        return ctx.reply(`😔 *ሌላ አማራጭ አልተገኘም።*\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``, { parse_mode: 'Markdown', ...mainKb });
+        return ctx.reply(`😔 *ሌላ አማራጭ አልተገኘም።*\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``, { parse_mode: 'Markdown', ...getMainKb() });
 
-    const results = fairShuffle(raw).slice(0, 4);
+    let results;
+    if (pageSize === 1) {
+        // Rotation: increment index each refresh
+        const idx = saved.rotateIdx || 0;
+        const all = fairShuffle(raw);
+        results = [all[idx % all.length]];
+        ctx.session[sessionKey].rotateIdx = (idx + 1) % Math.max(all.length, 1);
+    } else {
+        results = fairShuffle(raw).slice(0, pageSize);
+    }
 
     logSearch(ctx, logCategory, `${type} — ${location} [refresh]`, phone);
 
@@ -1922,30 +1967,32 @@ async function refreshResults(ctx, Model, sessionKey, cardFn, logCategory, locat
 }
 
 bot.action('REFRESH_CEM', ctx =>
-    refreshResults(ctx, CementSeller, 'buyCement', cementCardBuyer, '🧱 ሲሚንቶ ፈላጊ', 'location', 'REFRESH_CEM', '🧱', 'ሲሚንቶ')
+    refreshResults(ctx, CementSeller, 'buyCement', cementCardBuyer, '🧱 ሲሚንቶ ፈላጊ', 'location', 'REFRESH_CEM', '🧱', 'ሲሚንቶ', 3)
 );
 bot.action('REFRESH_STL', ctx =>
-    refreshResults(ctx, SteelSeller, 'buySteel', steelCardBuyer, '🟥 ብረት ፈላጊ', 'address', 'REFRESH_STL', '🟥', 'ብረት')
+    refreshResults(ctx, SteelSeller, 'buySteel', steelCardBuyer, '🟥 ብረት ፈላጊ', 'address', 'REFRESH_STL', '🟥', 'ብረት', 3)
 );
 bot.action('REFRESH_MAC', ctx =>
-    refreshResults(ctx, MachineryLeasor, 'rentMachinery', macCardBuyer, '🔹 ማሽነሪ ፈላጊ', 'address', 'REFRESH_MAC', '🔹', 'ማሽነሪ')
+    refreshResults(ctx, MachineryLeasor, 'rentMachinery', macCardBuyer, '🔹 ማሽነሪ ፈላጊ', 'address', 'REFRESH_MAC', '🔹', 'ማሽነሪ', 1)
 );
 
-// Truck refresh — trucks have no price field so we shuffle all results randomly
+// Truck refresh — show 1 at a time with rotation for fairness
 bot.action('REFRESH_TRK', async ctx => {
     ctx.answerCbQuery('🔄 ሌላ አማራጭ እየፈለግን...').catch(() => {});
     const saved = ctx.session.rentTruck;
-    if (!saved) return ctx.reply('⚠️ ፍለጋ ቢደፈፋ ዳግም ይሞክሩ።', mainKb);
+    if (!saved) return ctx.reply('⚠️ ፍለጋ ቢደፈፋ ዳግም ይሞክሩ።', getMainKb());
 
     const { type, route, phone } = saved;
     const raw = await findTruck(type, route);
 
     if (!raw.length)
-        return ctx.reply(`😔 *ሌላ አማራጭ አልተገኘም።*\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``, { parse_mode: 'Markdown', ...mainKb });
+        return ctx.reply(`😔 *ሌላ አማራጭ አልተገኘም።*\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``, { parse_mode: 'Markdown', ...getMainKb() });
 
-    // Full random shuffle — no price ordering for trucks
-    const shuffled = [...raw].sort(() => Math.random() - 0.5);
-    const results  = shuffled.slice(0, 4);
+    // Rotate: show next truck in sequence
+    const allTrk = [...raw].sort(() => Math.random() - 0.5);
+    const idx    = saved.rotateIdx || 0;
+    const results = [allTrk[idx % allTrk.length]];
+    ctx.session.rentTruck.rotateIdx = (idx + 1) % Math.max(allTrk.length, 1);
 
     logSearch(ctx, '🚚 ትራክ ፈላጊ', `${type} — ${route} [refresh]`, phone);
 
