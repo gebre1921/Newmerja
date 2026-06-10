@@ -168,17 +168,33 @@ const sessionSchema = new mongoose.Schema({
     data: { type: mongoose.Schema.Types.Mixed, default: {} }
 });
 
-// Global main-button visibility state (persisted in a special BotSession key)
-let mainButtonsHidden = false;
-async function loadMainHiddenState() {
+// ──────────────────────────────────────────────────────────
+// PER-BUTTON VISIBILITY (admin-controlled, persisted in DB)
+// ──────────────────────────────────────────────────────────
+const ALL_MAIN_BUTTONS = [
+    '🧱 ሲሚንቶ ለመሸጥ',
+    '🧱 ሲሚንቶ ለመግዛት',
+    '🚚 መኪና ለማከራየት',
+    '🚚 መኪና ለመከራየት',
+    '🟥 ብረት ለመሸጥ',
+    '🟥 ብረት ለመግዛት',
+    '🔹 ማሽነሪ ለማከራየት',
+    '🔹 ማሽነሪ ለመከራየት',
+];
+// true = visible (default), false = hidden
+let btnVisibility = Object.fromEntries(ALL_MAIN_BUTTONS.map(b => [b, true]));
+async function loadBtnVisibility() {
     try {
-        const doc = await mongoose.model('BotSession', sessionSchema).findOne({ key: '__main_hidden__' }).lean();
-        if (doc?.data?.hidden) mainButtonsHidden = true;
+        const doc = await BotSession.findOne({ key: '__btn_visibility__' }).lean();
+        if (doc?.data) btnVisibility = { ...btnVisibility, ...doc.data };
     } catch {}
 }
-async function saveMainHiddenState(val) {
-    mainButtonsHidden = val;
-    BotSession.updateOne({ key: '__main_hidden__' }, { $set: { data: { hidden: val } } }, { upsert: true }).catch(() => {});
+async function saveBtnVisibility() {
+    BotSession.updateOne(
+        { key: '__btn_visibility__' },
+        { $set: { data: btnVisibility } },
+        { upsert: true }
+    ).catch(() => {});
 }
 
 const CementSeller    = mongoose.model('CementSeller',    cementSchema);
@@ -208,7 +224,7 @@ async function connectMongo() {
 }
 mongoose.connection.on('disconnected', () => setTimeout(connectMongo, 3000));
 mongoose.connection.on('error', err => console.error('Mongo:', err));
-connectMongo().then(() => loadMainHiddenState()).catch(() => {});
+connectMongo().then(() => loadBtnVisibility()).catch(() => {});
 
 // ──────────────────────────────────────────────────────────
 // BOT + SESSION
@@ -709,21 +725,26 @@ const truckItemKb = id => Markup.inlineKeyboard([
 ]);
 
 // ──────────────────────────────────────────────────────────
-// MAIN KEYBOARD
+// MAIN KEYBOARD — built dynamically from per-button visibility
 // ──────────────────────────────────────────────────────────
 function getMainKb() {
-    if (mainButtonsHidden) {
-        return Markup.keyboard([['📞 አግኙን']]).resize();
-    }
-    return Markup.keyboard([
+    const pairs = [
         ['🧱 ሲሚንቶ ለመሸጥ',    '🧱 ሲሚንቶ ለመግዛት'],
         ['🚚 መኪና ለማከራየት',   '🚚 መኪና ለመከራየት'],
         ['🟥 ብረት ለመሸጥ',     '🟥 ብረት ለመግዛት'],
         ['🔹 ማሽነሪ ለማከራየት', '🔹 ማሽነሪ ለመከራየት'],
-        ['📞 አግኙን']
-    ]).resize();
+    ];
+    const rows = [];
+    for (const [left, right] of pairs) {
+        const visLeft  = btnVisibility[left]  !== false;
+        const visRight = btnVisibility[right] !== false;
+        if (visLeft && visRight)  rows.push([left, right]);
+        else if (visLeft)         rows.push([left]);
+        else if (visRight)        rows.push([right]);
+    }
+    rows.push(['📞 አግኙን']);
+    return Markup.keyboard(rows).resize();
 }
-// mainKb replaced by getMainKb() calls throughout
 
 // ──────────────────────────────────────────────────────────
 // WELCOME TEXT
@@ -809,10 +830,43 @@ bot.action('go_home', async ctx => {
 // ──────────────────────────────────────────────────────────
 // ADMIN PANEL
 // ──────────────────────────────────────────────────────────
+
+// Short IDs for callback_data (max 64 bytes)
+const BTN_ID = {
+    '🧱 ሲሚንቶ ለመሸጥ':    'b0',
+    '🧱 ሲሚንቶ ለመግዛት':   'b1',
+    '🚚 መኪና ለማከራየት':   'b2',
+    '🚚 መኪና ለመከራየት':   'b3',
+    '🟥 ብረት ለመሸጥ':     'b4',
+    '🟥 ብረት ለመግዛት':    'b5',
+    '🔹 ማሽነሪ ለማከራየት': 'b6',
+    '🔹 ማሽነሪ ለመከራየት': 'b7',
+};
+const ID_BTN = Object.fromEntries(Object.entries(BTN_ID).map(([k,v]) => [v,k]));
+
+function btnToggleKb() {
+    const rows = ALL_MAIN_BUTTONS.map(label => {
+        const vis   = btnVisibility[label] !== false;
+        const icon  = vis ? '✅' : '❌';
+        const short = BTN_ID[label];
+        return [Markup.button.callback(`${icon} ${label}`, `btntog_${short}`)];
+    });
+    rows.push([Markup.button.callback('⬅️ ወደ አድሚን ፓናል', 'admin_home')]);
+    return Markup.inlineKeyboard(rows);
+}
+
 bot.command('admin_panel', async ctx => {
     if (!isAdmin(ctx)) return ctx.reply('⛔ ፈቃድ የለዎትም!');
-    const hideLabel = mainButtonsHidden ? '🟢 Main Buttons አሳይ' : '🔴 Main Buttons ደብቅ';
-    ctx.reply(
+    await showAdminHome(ctx);
+});
+
+bot.action('admin_home', async ctx => {
+    ctx.answerCbQuery().catch(() => {});
+    await showAdminHome(ctx);
+});
+
+async function showAdminHome(ctx) {
+    await ctx.reply(
         `🔧 *አድሚን ፓናል* — ዘርፍ ይምረጡ:`,
         {
             parse_mode: 'Markdown',
@@ -827,18 +881,37 @@ bot.command('admin_panel', async ctx => {
                 [Markup.button.callback('👁️ ማሽነሪ — ተፈላጊ', 'rep_mac_views'),
                  Markup.button.callback('👁️ ትራክ — ተፈላጊ',  'rep_trk_views')],
                 [Markup.button.callback('🗑️ ማጥፊያ', 'admin_del')],
-                [Markup.button.callback(hideLabel, 'admin_toggle_main')]
+                [Markup.button.callback('🎛️ Main Buttons አቀናብር', 'admin_btn_vis')]
             ])
         }
     );
+}
+
+// Show per-button toggle panel
+bot.action('admin_btn_vis', async ctx => {
+    if (!isAdmin(ctx)) return ctx.answerCbQuery('⛔').catch(() => {});
+    ctx.answerCbQuery().catch(() => {});
+    await ctx.reply(
+        `🎛️ *Main Buttons አቀናብር*
+
+የሚፈልጉትን button ይጫኑ ለማብራት/ለማጥፋት:
+✅ = ይታያል  |  ❌ = ተደብቋል`,
+        { parse_mode: 'Markdown', ...btnToggleKb() }
+    );
 });
 
-bot.action('admin_toggle_main', async ctx => {
+// Toggle individual button
+bot.action(/^btntog_(b[0-7])$/, async ctx => {
     if (!isAdmin(ctx)) return ctx.answerCbQuery('⛔').catch(() => {});
-    await saveMainHiddenState(!mainButtonsHidden);
-    const state = mainButtonsHidden ? 'ደብቅ (hidden)' : 'አሳይ (visible)';
-    ctx.answerCbQuery(`✅ Main buttons: ${state}`).catch(() => {});
-    await ctx.reply(`✅ Main buttons ሁኔታ ተቀይሯል: *${state}*`, { parse_mode: 'Markdown' });
+    const id    = ctx.match[1];
+    const label = ID_BTN[id];
+    if (!label) return ctx.answerCbQuery('❗ ያልታወቀ').catch(() => {});
+    btnVisibility[label] = btnVisibility[label] === false ? true : false;
+    await saveBtnVisibility();
+    const state = btnVisibility[label] ? '✅ ታይቷል' : '❌ ተደብቋል';
+    ctx.answerCbQuery(`${state}`).catch(() => {});
+    // Refresh the toggle panel in-place
+    await ctx.editMessageReplyMarkup(btnToggleKb().reply_markup).catch(() => {});
 });
 
 const adminDelKb = (prefix, id) => Markup.inlineKeyboard([
