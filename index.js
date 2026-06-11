@@ -1238,7 +1238,6 @@ bot.on('text', async (ctx, next) => {
             const {type,location}=ctx.session.buyCement;
             const typeRx=searchRx(type), locRx=searchRx(location);
             let raw=await CementSeller.find({type:typeRx,location:locRx,status:'active'}).sort({price:1}).limit(20).lean();
-            if (!raw.length) raw=await CementSeller.find({type:typeRx,status:'active'}).sort({price:1}).limit(20).lean();
             const results=fairShuffle(raw).slice(0,3);
             logSearch(ctx,'🧱 ሲሚንቶ ፈላጊ',`${type} — ${location}`,phone);
             ctx.session.action=null;
@@ -1267,7 +1266,6 @@ bot.on('text', async (ctx, next) => {
             const {type,location}=ctx.session.buySteel;
             const typeRx=searchRx(type), locRx=searchRx(location);
             let raw=await SteelSeller.find({type:typeRx,address:locRx,status:'active'}).sort({price:1}).limit(20).lean();
-            if (!raw.length) raw=await SteelSeller.find({type:typeRx,status:'active'}).sort({price:1}).limit(20).lean();
             const results=fairShuffle(raw).slice(0,3);
             logSearch(ctx,'🟥 ብረት ፈላጊ',`${type} — ${location}`,phone);
             ctx.session.action=null;
@@ -1296,7 +1294,6 @@ bot.on('text', async (ctx, next) => {
             const {type,location}=ctx.session.rentMachinery;
             const typeRx=searchRx(type), locRx=searchRx(location);
             let raw=await MachineryLeasor.find({type:typeRx,address:locRx,status:'active'}).sort({price:1}).limit(20).lean();
-            if (!raw.length) raw=await MachineryLeasor.find({type:typeRx,status:'active'}).sort({price:1}).limit(20).lean();
             const all=fairShuffle(raw);
             const idx=ctx.session.rentMachinery.rotateIdx||0;
             const results=all.length?[all[idx%all.length]]:[];
@@ -1371,7 +1368,6 @@ async function refreshResults(ctx, Model, sessionKey, cardFn, logCategory, locat
     const {type,location,phone}=saved;
     const typeRx=searchRx(type), locRx=searchRx(location||'');
     let raw=await Model.find({type:typeRx,[locationField]:locRx,status:'active'}).sort({price:1}).limit(20).lean();
-    if (!raw.length) raw=await Model.find({type:typeRx,status:'active'}).sort({price:1}).limit(20).lean();
     if (!raw.length) return ctx.reply(`😔 *ሌላ አማራጭ አልተገኘም።*\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,{parse_mode:'Markdown',...getMainKb()});
     let results;
     if (pageSize===1) {
