@@ -1,7 +1,7 @@
 'use strict';
 
 // ╔══════════════════════════════════════════════════════════════╗
-// ║        Simple Marketplace Bot  v9.0  ⚡ Ultra-Reliable       ║
+// ║        Simple Marketplace Bot  v10.0  🛡️ 24/7 Fortress       ║
 // ║      ሲሚንቶ  ·  ብረት  ·  ማሽነሪ  ·  ትራክ                        ║
 // ╚══════════════════════════════════════════════════════════════╝
 
@@ -20,6 +20,8 @@ const ADMIN_IDS     = (process.env.ADMIN_IDS     || '7423347375')
                         .split(',').map(s => Number(s.trim()));
 const PORT          = Number(process.env.PORT)   || 10000;
 const RENDER_URL    =  process.env.RENDER_EXTERNAL_URL || '';
+const WEBHOOK_SECRET = (process.env.WEBHOOK_SECRET || crypto.randomBytes(32).toString('hex'));
+const MAX_PAYLOAD_BYTES = 512 * 1024; // 512 KB — reject oversized payloads
 
 if (!BOT_TOKEN || !MONGO_URI) {
     console.error('❌  BOT_TOKEN ወይም MONGO_URI አልተገኘም!');
@@ -33,20 +35,54 @@ process.on('unhandledRejection', (reason) => console.error('[UnhandledRejection]
 process.on('uncaughtException',  (err)    => console.error('[UncaughtException]',  err));
 
 // ──────────────────────────────────────────────────────────
+// MEMORY WATCHDOG — prevent OOM crashes on free-tier
+// ──────────────────────────────────────────────────────────
+const MEM_LIMIT_MB = Number(process.env.MEM_LIMIT_MB) || 400;
+setInterval(() => {
+    const used = process.memoryUsage().rss / 1024 / 1024;
+    if (used > MEM_LIMIT_MB) {
+        console.warn(`[MemWatchdog] RSS ${used.toFixed(0)} MB > ${MEM_LIMIT_MB} MB — clearing caches`);
+        // Evict half of session cache
+        const keys = [...sessionCache.keys()];
+        keys.slice(0, Math.floor(keys.length / 2)).forEach(k => sessionCache.delete(k));
+        // Evict all rate-limit entries
+        rateLimitMap.clear();
+        if (global.gc) global.gc();
+    }
+}, 60_000);
+
+// ──────────────────────────────────────────────────────────
 // RATE LIMITER — memory-efficient sliding window
 // ──────────────────────────────────────────────────────────
 const rateLimitMap = new Map();
+const blockedUsers = new Map(); // userId -> unblockAt
 
 function rateLimit(userId, maxPerMinute = 60) {
     const now = Date.now();
+    // Check hard block (repeated abuse)
+    const blocked = blockedUsers.get(userId);
+    if (blocked) {
+        if (now < blocked) return true;
+        blockedUsers.delete(userId);
+    }
     let e = rateLimitMap.get(userId);
-    if (!e || now > e.resetAt) { e = { count: 0, resetAt: now + 60_000 }; rateLimitMap.set(userId, e); }
+    if (!e || now > e.resetAt) { e = { count: 0, resetAt: now + 60_000, strikes: e?.strikes || 0 }; rateLimitMap.set(userId, e); }
     e.count++;
-    return e.count > maxPerMinute;
+    if (e.count > maxPerMinute) {
+        e.strikes = (e.strikes || 0) + 1;
+        // After 3 strikes in a session: block for 10 minutes
+        if (e.strikes >= 3) {
+            blockedUsers.set(userId, now + 10 * 60_000);
+            console.warn(`[Security] User ${userId} blocked 10min after ${e.strikes} abuse strikes`);
+        }
+        return true;
+    }
+    return false;
 }
 setInterval(() => {
     const now = Date.now();
     for (const [k, v] of rateLimitMap) if (now > v.resetAt) rateLimitMap.delete(k);
+    for (const [k, v] of blockedUsers) if (now > v) blockedUsers.delete(k);
 }, 5 * 60_000);
 
 // ──────────────────────────────────────────────────────────
@@ -57,7 +93,13 @@ function sanitize(input) {
     if (typeof input !== 'string') return '';
     return input.slice(0, MAX_INPUT_LEN)
         .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-        .replace(/\$/g, '').replace(/[{}]/g, '').trim();
+        .replace(/\$/g, '')
+        .replace(/[{}]/g, '')
+        .replace(/<[^>]*>/g, '')            // strip HTML tags
+        .replace(/javascript:/gi, '')        // prevent JS injection
+        .replace(/data:/gi, '')              // prevent data-URI injection
+        .replace(/on\w+\s*=/gi, '')         // strip inline event handlers
+        .trim();
 }
 function safePhone(p) { return sanitize(p).replace(/[^\d\s+\-()/]/g, '').slice(0, 20); }
 function safePrice(text) {
@@ -177,14 +219,18 @@ let mongoRetryDelay = 2000;
 async function connectMongo() {
     try {
         await mongoose.connect(MONGO_URI, {
-            maxPoolSize: 150,
-            minPoolSize: 10,
-            serverSelectionTimeoutMS: 10_000,
-            socketTimeoutMS: 45_000,
-            heartbeatFrequencyMS: 10_000,
-            connectTimeoutMS: 15_000,
+            maxPoolSize: 200,
+            minPoolSize: 5,
+            serverSelectionTimeoutMS: 15_000,
+            socketTimeoutMS: 60_000,
+            heartbeatFrequencyMS: 8_000,
+            connectTimeoutMS: 20_000,
             retryWrites: true,
             retryReads: true,
+            compressors: ['zlib'],       // network compression
+            zlibCompressionLevel: 6,
+            maxIdleTimeMS: 120_000,      // reclaim idle connections
+            waitQueueTimeoutMS: 10_000,  // don't hang forever on busy pool
         });
         mongoRetryDelay = 2000; // reset on success
         console.log('✅  MongoDB Connected');
@@ -199,19 +245,36 @@ mongoose.connection.on('disconnected', () => {
     console.warn('⚠️  MongoDB disconnected — reconnecting...');
     setTimeout(connectMongo, mongoRetryDelay);
 });
+mongoose.connection.on('reconnected', () => { console.log('✅ MongoDB reconnected'); mongoRetryDelay = 2000; });
 mongoose.connection.on('error', err => console.error('[Mongo]', err.message));
+// Log slow queries in dev
+if (process.env.NODE_ENV !== 'production') {
+    mongoose.set('debug', (coll, op) => console.log(`[Mongo] ${coll}.${op}`));
+}
 connectMongo();
 
 // ──────────────────────────────────────────────────────────
 // BOT — aggressive timeouts & retry
 // ──────────────────────────────────────────────────────────
 const bot = new Telegraf(BOT_TOKEN, {
-    handlerTimeout: 90_000,
+    handlerTimeout: 120_000,
     telegram: {
         webhookReply: false,
-        // retry on network errors
         apiRoot: 'https://api.telegram.org',
+        agent: (() => {
+            // Keep-alive HTTP agent for Telegram API calls
+            const { Agent } = require('https');
+            return new Agent({ keepAlive: true, maxSockets: 50, timeout: 30000 });
+        })(),
     }
+});
+
+// Global middleware: answer all callback queries to prevent Telegram spinner
+bot.use(async (ctx, next) => {
+    if (ctx.callbackQuery) {
+        ctx.answerCbQuery().catch(() => {});
+    }
+    return next();
 });
 
 // ──────────────────────────────────────────────────────────
@@ -1303,7 +1366,7 @@ bot.on('text', async (ctx, next) => {
             const hinted=await tryFuzzyHint(ctx,`${type} ${location}`,results);
             if (!hinted&&!results.length) return ctx.reply(`😔 *ይቅርታ!*\n\n*${esc(type)}* ማሽነሪ *${esc(location)}* ቦታ ላይ አልተገኘም።\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,{parse_mode:'Markdown',...getMainKb()});
             if (results.length) {
-                await ctx.reply(`🎉 *እንኳ ደሳለዎት! ሻጮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
+                await ctx.reply(`🎉 *እንኳ ደሳለዎት! አከራዮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
                 for (const it of results) { await ctx.reply(macCardBuyer(it),{parse_mode:'Markdown'}); MachineryLeasor.findByIdAndUpdate(it._id,{$inc:{viewCount:1}}).catch(()=>{}); }
                 await ctx.reply(supportLine,{parse_mode:'Markdown',...Markup.inlineKeyboard([[Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?','REFRESH_MAC')],[Markup.button.callback('🏠 ወደ ዋና ማውጫ','go_home')]])});
             }
@@ -1345,7 +1408,7 @@ bot.on('text', async (ctx, next) => {
             const hinted=await tryFuzzyHint(ctx,`${type} ${route}`,results);
             if (!hinted&&!results.length) return ctx.reply(`😔 *ይቅርታ!*\n\n*${esc(type)}* — *${esc(route)}*\n\nምንም መኪና አልተገኘም።\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,{parse_mode:'Markdown',...getMainKb()});
             if (results.length) {
-                await ctx.reply(`🎉 *እንኳ ደሳለዎት! ሻጮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
+                await ctx.reply(`🎉 *እንኳ ደሳለዎት! አከራዮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
                 for (const it of results) { await ctx.reply(truckCardBuyer(it),{parse_mode:'Markdown'}); TruckLeasor.findByIdAndUpdate(it._id,{$inc:{rentedCount:1,viewCount:1}}).catch(()=>{}); }
                 await ctx.reply(supportLine,{parse_mode:'Markdown',...Markup.inlineKeyboard([[Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?','REFRESH_TRK')],[Markup.button.callback('🏠 ወደ ዋና ማውጫ','go_home')]])});
             }
@@ -1379,7 +1442,7 @@ async function refreshResults(ctx, Model, sessionKey, cardFn, logCategory, locat
         results=fairShuffle(raw).slice(0,pageSize);
     }
     logSearch(ctx,logCategory,`${type} — ${location} [refresh]`,phone);
-    await ctx.reply(`🎉 *እንኳ ደሳለዎት! ሻጮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
+    await ctx.reply(`🎉 *እንኳ ደሳለዎት! አከራዮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
     for (const it of results) { await ctx.reply(cardFn(it),{parse_mode:'Markdown'}); Model.findByIdAndUpdate(it._id,{$inc:{viewCount:1}}).catch(()=>{}); }
     await ctx.reply(`_ሌላ አማራጭ ለማየት:_`,{parse_mode:'Markdown',...Markup.inlineKeyboard([[Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?',refreshAction)],[Markup.button.callback('🏠 ወደ ዋና ማውጫ','go_home')]])});
 }
@@ -1400,7 +1463,7 @@ bot.action('REFRESH_TRK', async ctx => {
     const results=[all[idx%all.length]];
     ctx.session.rentTruck.rotateIdx=(idx+1)%Math.max(all.length,1);
     logSearch(ctx,'🚚 ትራክ ፈላጊ',`${type} — ${route} [refresh]`,phone);
-    await ctx.reply(`🎉 *እንኳ ደሳለዎት! ሻጮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
+    await ctx.reply(`🎉 *እንኳ ደሳለዎት! አከራዮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
     for (const it of results) { await ctx.reply(truckCardBuyer(it),{parse_mode:'Markdown'}); TruckLeasor.findByIdAndUpdate(it._id,{$inc:{viewCount:1}}).catch(()=>{}); }
     await ctx.reply(`_ሌላ አማራጭ ለማየት:_`,{parse_mode:'Markdown',...Markup.inlineKeyboard([[Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?','REFRESH_TRK')],[Markup.button.callback('🏠 ወደ ዋና ማውጫ','go_home')]])});
 });
@@ -1410,42 +1473,106 @@ bot.action('REFRESH_TRK', async ctx => {
 // ──────────────────────────────────────────────────────────
 let webhookPath = null;
 
+// Security headers applied to every response
+function applySecurityHeaders(res) {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Content-Security-Policy', "default-src 'none'");
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+}
+
 const server = http.createServer((req, res) => {
-    // Webhook handler
+    applySecurityHeaders(res);
+
+    // ── Webhook handler ──────────────────────────────
     if (webhookPath && req.method==='POST' && req.url===webhookPath) {
-        let body='';
-        req.on('data', d => body+=d);
-        req.on('end', () => {
-            try { bot.handleUpdate(JSON.parse(body), res); } catch { res.writeHead(200); res.end(); }
+        // Validate Telegram secret header
+        const secret = req.headers['x-telegram-bot-api-secret-token'];
+        if (secret !== WEBHOOK_SECRET) {
+            console.warn('[Security] Webhook request rejected — bad secret from', req.socket.remoteAddress);
+            res.writeHead(403); res.end('Forbidden');
+            return;
+        }
+        let body = '', size = 0;
+        req.on('data', chunk => {
+            size += chunk.length;
+            if (size > MAX_PAYLOAD_BYTES) {
+                console.warn('[Security] Oversized payload rejected — aborting request');
+                req.destroy();
+                return;
+            }
+            body += chunk;
         });
+        req.on('end', () => {
+            try { bot.handleUpdate(JSON.parse(body), res); }
+            catch { res.writeHead(200); res.end(); }
+        });
+        req.on('error', () => { res.writeHead(200); res.end(); });
         return;
     }
-    // Health check
-    if (req.url==='/'||req.url==='/health') {
+
+    // ── Health check ─────────────────────────────────
+    if ((req.method==='GET') && (req.url==='/'||req.url==='/health')) {
+        const memMB = (process.memoryUsage().rss / 1024 / 1024).toFixed(1);
         res.writeHead(200,{'Content-Type':'application/json'});
         res.end(JSON.stringify({
             status:'ok',
+            version: 'v10.0',
             uptime: Math.floor(process.uptime()),
+            uptimeHuman: formatUptime(process.uptime()),
             mongo: mongoose.connection.readyState===1?'connected':'disconnected',
             sessions: sessionCache.size,
+            blocked: blockedUsers.size,
+            memMB,
             ts: new Date().toISOString()
         }));
         return;
     }
+
     res.writeHead(404); res.end();
 });
+
+function formatUptime(s) {
+    const d=Math.floor(s/86400), h=Math.floor((s%86400)/3600), m=Math.floor((s%3600)/60);
+    return `${d}d ${h}h ${m}m`;
+}
+
+// Set server timeouts to prevent slow-loris attacks
+server.headersTimeout = 15_000;
+server.requestTimeout = 30_000;
+server.keepAliveTimeout = 61_000;
 
 server.listen(PORT, () => console.log(`🌐 HTTP server on port ${PORT}`));
 
 // Keep-alive self-ping every 25 s — prevents Render free-tier spin-down
 // Uses native http to avoid extra deps
 if (RENDER_URL) {
-    const pingUrl = new URL(RENDER_URL);
+    const https = require('https');
+    const pingUrl = new URL(RENDER_URL.startsWith('http') ? RENDER_URL : `https://${RENDER_URL}`);
+    let pingFails = 0;
+    const PING_INTERVAL = 20_000; // 20s — more aggressive to prevent Render spin-down
     setInterval(() => {
-        const req = http.request({ hostname: pingUrl.hostname, port: pingUrl.port||80, path:'/', method:'GET', timeout:10000 });
-        req.on('error', ()=>{});
+        const lib = pingUrl.protocol === 'https:' ? https : http;
+        const req = lib.request({
+            hostname: pingUrl.hostname,
+            port: pingUrl.port || (pingUrl.protocol === 'https:' ? 443 : 80),
+            path: '/health',
+            method: 'GET',
+            timeout: 8_000,
+            headers: { 'User-Agent': 'BotSelfPing/1.0' }
+        }, res => {
+            pingFails = 0;
+            res.resume(); // drain
+        });
+        req.on('error', () => {
+            pingFails++;
+            if (pingFails % 5 === 0) console.warn(`[Ping] ${pingFails} consecutive ping failures`);
+        });
+        req.on('timeout', () => req.destroy());
         req.end();
-    }, 25_000);
+    }, PING_INTERVAL);
 }
 
 // ──────────────────────────────────────────────────────────
@@ -1460,6 +1587,7 @@ async function launch() {
         await bot.telegram.setWebhook(webhookUrl, {
             allowed_updates: ['message','callback_query'],
             max_connections: 100,
+            secret_token: WEBHOOK_SECRET,  // Telegram signs requests with this
         });
         console.log(`🔗 Webhook set: ${webhookUrl}`);
     } else {
@@ -1473,16 +1601,31 @@ async function launch() {
 async function launchWithRetry(attempt=1) {
     try {
         await launch();
+        console.log(`✅ Bot launched successfully on attempt ${attempt}`);
     } catch (err) {
         console.error(`❌ Bot launch failed (attempt ${attempt}):`, err.message);
-        if (attempt>=5) { console.error('Giving up after 5 attempts'); process.exit(1); }
-        const delay = attempt * 3000;
-        console.log(`Retrying in ${delay}ms...`);
-        setTimeout(()=>launchWithRetry(attempt+1), delay);
+        if (attempt >= 10) { console.error('❌ Giving up after 10 attempts'); process.exit(1); }
+        // Exponential backoff: 2s, 4s, 8s … capped at 60s
+        const delay = Math.min(Math.pow(2, attempt) * 1000, 60_000);
+        console.log(`⏳ Retrying in ${delay/1000}s (attempt ${attempt+1}/10)...`);
+        setTimeout(() => launchWithRetry(attempt + 1), delay);
     }
 }
 
 launchWithRetry();
 
-process.once('SIGINT',  () => { flushSessionWrites(); bot.stop('SIGINT');  });
-process.once('SIGTERM', () => { flushSessionWrites(); bot.stop('SIGTERM'); });
+async function gracefulShutdown(signal) {
+    console.log(`🔴 ${signal} received — shutting down gracefully...`);
+    try {
+        bot.stop(signal);
+        await flushSessionWrites();
+        await mongoose.connection.close();
+        console.log('✅ Clean shutdown complete');
+    } catch (e) {
+        console.error('[Shutdown]', e.message);
+    } finally {
+        process.exit(0);
+    }
+}
+process.once('SIGINT',  () => gracefulShutdown('SIGINT'));
+process.once('SIGTERM', () => gracefulShutdown('SIGTERM'));
