@@ -314,11 +314,12 @@ const SYNONYM_GROUPS = [
     ['ሲሚንቶ','cement','cemento','siminto'],
     ['ብረት','steel','iron','bireet'],
     ['ቆርቆሮ','rod','bar','rebar'],
-    ['ባለ 8','ባለ8','8mm','8 mm','bale 8','8'],
-    ['ባለ 10','ባለ10','10mm','10 mm','bale 10','10'],
-    ['ባለ 12','ባለ12','12mm','12 mm','bale 12','12'],
-    ['ባለ 14','ባለ14','14mm','14 mm','bale 14'],
-    ['ባለ 16','ባለ16','16mm','16 mm','bale 16'],
+    ['ባለ 8mm','ባለ 8','ባለ8','8mm','8 mm','bale 8','8'],
+    ['ባለ 10mm','ባለ 10','ባለ10','10mm','10 mm','bale 10','10'],
+    ['ባለ 12mm','ባለ 12','ባለ12','12mm','12 mm','bale 12','12'],
+    ['ባለ 14mm','ባለ 14','ባለ14','14mm','14 mm','bale 14'],
+    ['ባለ 16mm','ባለ 16','ባለ16','16mm','16 mm','bale 16'],
+    ['ባለ 20mm','ባለ 20','ባለ20','20mm','20 mm','bale 20'],
     ['ማሽነሪ','machinery','machine','mashineri'],
     ['ኤክስካቫተር','excavator','exkavator','excavater','digger'],
     ['ቡልዶዘር','bulldozer','buldozer','bull dozer'],
@@ -485,7 +486,7 @@ function logSearch(ctx, category, searchedFor, phone) {
 // OPTION LISTS
 // ──────────────────────────────────────────────────────────
 const CEMENT_TYPES    = ['ዳንጎቴ','ናሽናል','ሙገር','ደርባ','ሀበሻ','መሰቦ','ኢስት ካፒታል','ሌላ'];
-const STEEL_TYPES     = ['ባለ 8','ባለ 10','ባለ 12','ባለ 14','ባለ 16','ቆርቆሮ (ሌላ)'];
+const STEEL_TYPES     = ['ባለ 8mm','ባለ 10mm','ባለ 12mm','ባለ 14mm','ባለ 16mm','ባለ 20mm','ቆርቆሮ (ሌላ)'];
 const MACHINERY_TYPES = ['ኤክስካቫተር','ቡልዶዘር','ጂሬደር','ሮለር','ሎደር','ክሬን','ሌላ'];
 const TRUCK_TYPES     = ['ሲኖትራክ','FSR Isuzu','ተሳቢ','ሌላ'];
 const TRUCK_TRIP_MODE = ['🏙️ አዲስ አበባ ከተማ ውስጥ','🛣️ ከአንድ ከተማ ወደ ሌላ ከተማ'];
@@ -940,14 +941,14 @@ bot.action(/^BSTL_(.+)$/, async ctx => {
     const val=sanitize(ctx.match[1]);
     if (val==='ቆርቆሮ (ሌላ)'||val==='ሌላ') { ctx.session.action='BUY_STEEL_1_TEXT'; return sendStep(ctx,'🟥 *ምን አይነት ብረት ይፈልጋሉ?*'); }
     ctx.session.buySteel={type:val}; ctx.session.action='BUY_STEEL_2';
-    sendStep(ctx,'`[2/3]` 📍 *ብረት ከየትኛው ቦታ?*');
+    sendStep(ctx,'`[2/2]` 📍 *ብረት ከየትኛው ቦታ?*');
 });
 bot.action(/^BMAC_(.+)$/, async ctx => {
     ctx.answerCbQuery().catch(()=>{}); await deletePrev(ctx);
     const val=sanitize(ctx.match[1]);
     if (val==='ሌላ') { ctx.session.action='RENT_MACHINERY_1_TEXT'; return sendStep(ctx,'🔹 *ምን አይነት ማሽነሪ ይፈልጋሉ?*'); }
     ctx.session.rentMachinery={type:val}; ctx.session.action='RENT_MACHINERY_2';
-    sendStep(ctx,'`[2/3]` 📍 *ማሽነሪ ከየትኛው ቦታ?*');
+    sendStep(ctx,'`[2/2]` 📍 *ማሽነሪ ከየትኛው ቦታ?*');
 });
 bot.action(/^BTRK_(.+)$/, async ctx => {
     ctx.answerCbQuery().catch(()=>{}); await deletePrev(ctx);
@@ -1055,8 +1056,8 @@ bot.action('fuzzy_no',       ctx => ctx.answerCbQuery('እሺ!').catch(()=>{}));
 // ──────────────────────────────────────────────────────────
 // SUPPORT LINE CONSTANT
 // ──────────────────────────────────────────────────────────
-const supportLine       = `\n📞 *ለተጨማሪ መረጃ ይደዉሉ:*\n👉 \`${SUPPORT_PHONE}\``;
-const sellerSupportLine = `\n📞 *ለተጨማሪ መረጃ ወይም ድጋፍ:*\n👉 \`${SUPPORT_PHONE}\``;
+const supportLine       = `\n📞 *ለማዘዝ ይደዉሉ:*\n👉 \`${SUPPORT_PHONE}\``;
+const sellerSupportLine = `\n📞 *ለማዘዝ ወይም ለድጋፍ:*\n👉 \`${SUPPORT_PHONE}\``;
 
 // ──────────────────────────────────────────────────────────
 // TEXT STATE MACHINE
@@ -1244,7 +1245,7 @@ bot.on('text', async (ctx, next) => {
             const hinted=await tryFuzzyHint(ctx,`${type} ${location}`,results);
             if (!hinted&&!results.length) return ctx.reply(`😔 *ይቅርታ!*\n\n*${esc(type)}* ሲሚንቶ *${esc(location)}* ቦታ ላይ አልተገኘም።\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,{parse_mode:'Markdown',...getMainKb()});
             if (results.length) {
-                await ctx.reply(`✅ *${results.length} ሲሚንቶ ሻጭ ተገኘ!*\n\n📞 ስልክዎ: \`${phone}\``,{parse_mode:'Markdown'});
+                await ctx.reply(`🎉 *እንኳ ደሳለዎት! ሻጮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
                 for (const it of results) { await ctx.reply(cementCardBuyer(it),{parse_mode:'Markdown'}); CementSeller.findByIdAndUpdate(it._id,{$inc:{viewCount:1}}).catch(()=>{}); }
                 await ctx.reply(supportLine,{parse_mode:'Markdown',...Markup.inlineKeyboard([[Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?','REFRESH_CEM')],[Markup.button.callback('🏠 ወደ ዋና ማውጫ','go_home')]])});
             }
@@ -1273,7 +1274,7 @@ bot.on('text', async (ctx, next) => {
             const hinted=await tryFuzzyHint(ctx,`${type} ${location}`,results);
             if (!hinted&&!results.length) return ctx.reply(`😔 *ይቅርታ!*\n\n*${esc(type)}* ብረት *${esc(location)}* ቦታ ላይ አልተገኘም።\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,{parse_mode:'Markdown',...getMainKb()});
             if (results.length) {
-                await ctx.reply(`✅ *${results.length} ብረት ሻጭ ተገኘ!*\n\n📞 ስልክዎ: \`${phone}\``,{parse_mode:'Markdown'});
+                await ctx.reply(`🎉 *እንኳ ደሳለዎት! ሻጮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
                 for (const it of results) { await ctx.reply(steelCardBuyer(it),{parse_mode:'Markdown'}); SteelSeller.findByIdAndUpdate(it._id,{$inc:{viewCount:1}}).catch(()=>{}); }
                 await ctx.reply(supportLine,{parse_mode:'Markdown',...Markup.inlineKeyboard([[Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?','REFRESH_STL')],[Markup.button.callback('🏠 ወደ ዋና ማውጫ','go_home')]])});
             }
@@ -1305,7 +1306,7 @@ bot.on('text', async (ctx, next) => {
             const hinted=await tryFuzzyHint(ctx,`${type} ${location}`,results);
             if (!hinted&&!results.length) return ctx.reply(`😔 *ይቅርታ!*\n\n*${esc(type)}* ማሽነሪ *${esc(location)}* ቦታ ላይ አልተገኘም።\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,{parse_mode:'Markdown',...getMainKb()});
             if (results.length) {
-                await ctx.reply(`✅ *${results.length} ማሽነሪ ተገኘ!*\n\n📞 ስልክዎ: \`${phone}\``,{parse_mode:'Markdown'});
+                await ctx.reply(`🎉 *እንኳ ደሳለዎት! ሻጮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
                 for (const it of results) { await ctx.reply(macCardBuyer(it),{parse_mode:'Markdown'}); MachineryLeasor.findByIdAndUpdate(it._id,{$inc:{viewCount:1}}).catch(()=>{}); }
                 await ctx.reply(supportLine,{parse_mode:'Markdown',...Markup.inlineKeyboard([[Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?','REFRESH_MAC')],[Markup.button.callback('🏠 ወደ ዋና ማውጫ','go_home')]])});
             }
@@ -1331,7 +1332,7 @@ bot.on('text', async (ctx, next) => {
         }
         if (action==='RENT_TRUCK_3') {
             ctx.session.rentTruck.phone=safePhone(text); ctx.session.action='RENT_TRUCK_4';
-            return sendStep(ctx,'`[5/5]` 📦 *ምን ዓይነት ጭነት ነው?*\nለምሳሌ: ሲሚንቶ፣ ብረት ወይም ሌላ');
+            return sendStep(ctx,'`[4/4]` 📦 *ምን ዓይነት ጭነት ነው?*\nለምሳሌ: ሲሚንቶ፣ ብረት ወይም ሌላ');
         }
         if (action==='RENT_TRUCK_4') {
             const cargo=text, phone=ctx.session.rentTruck.phone;
@@ -1347,7 +1348,7 @@ bot.on('text', async (ctx, next) => {
             const hinted=await tryFuzzyHint(ctx,`${type} ${route}`,results);
             if (!hinted&&!results.length) return ctx.reply(`😔 *ይቅርታ!*\n\n*${esc(type)}* — *${esc(route)}*\n\nምንም መኪና አልተገኘም።\n\n📞 ለእርዳታ: \`${SUPPORT_PHONE}\``,{parse_mode:'Markdown',...getMainKb()});
             if (results.length) {
-                await ctx.reply(`✅ *${results.length} መኪናው ዝግጁ ነው!*\n\n📞 ስልክዎ: \`${phone}\``,{parse_mode:'Markdown'});
+                await ctx.reply(`🎉 *እንኳ ደሳለዎት! ሻጮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
                 for (const it of results) { await ctx.reply(truckCardBuyer(it),{parse_mode:'Markdown'}); TruckLeasor.findByIdAndUpdate(it._id,{$inc:{rentedCount:1,viewCount:1}}).catch(()=>{}); }
                 await ctx.reply(supportLine,{parse_mode:'Markdown',...Markup.inlineKeyboard([[Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?','REFRESH_TRK')],[Markup.button.callback('🏠 ወደ ዋና ማውጫ','go_home')]])});
             }
@@ -1382,7 +1383,7 @@ async function refreshResults(ctx, Model, sessionKey, cardFn, logCategory, locat
         results=fairShuffle(raw).slice(0,pageSize);
     }
     logSearch(ctx,logCategory,`${type} — ${location} [refresh]`,phone);
-    await ctx.reply(`🔄 *${results.length} አዲስ አማራጭ ተገኘ!*\n\n📞 ስልክዎ: \`${phone}\``,{parse_mode:'Markdown'});
+    await ctx.reply(`🎉 *እንኳ ደሳለዎት! ሻጮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
     for (const it of results) { await ctx.reply(cardFn(it),{parse_mode:'Markdown'}); Model.findByIdAndUpdate(it._id,{$inc:{viewCount:1}}).catch(()=>{}); }
     await ctx.reply(`_ሌላ አማራጭ ለማየት:_`,{parse_mode:'Markdown',...Markup.inlineKeyboard([[Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?',refreshAction)],[Markup.button.callback('🏠 ወደ ዋና ማውጫ','go_home')]])});
 }
@@ -1403,7 +1404,7 @@ bot.action('REFRESH_TRK', async ctx => {
     const results=[all[idx%all.length]];
     ctx.session.rentTruck.rotateIdx=(idx+1)%Math.max(all.length,1);
     logSearch(ctx,'🚚 ትራክ ፈላጊ',`${type} — ${route} [refresh]`,phone);
-    await ctx.reply(`🔄 *${results.length} አዲስ አማራጭ ተገኘ!* 🚚\n\n📞 ስልክዎ: \`${phone}\``,{parse_mode:'Markdown'});
+    await ctx.reply(`🎉 *እንኳ ደሳለዎት! ሻጮች እዚህ ይገኛሉ!!*`,{parse_mode:'Markdown'});
     for (const it of results) { await ctx.reply(truckCardBuyer(it),{parse_mode:'Markdown'}); TruckLeasor.findByIdAndUpdate(it._id,{$inc:{viewCount:1}}).catch(()=>{}); }
     await ctx.reply(`_ሌላ አማራጭ ለማየት:_`,{parse_mode:'Markdown',...Markup.inlineKeyboard([[Markup.button.callback('🔄 ሌላ አማራጭ ይፈልጋሉ?','REFRESH_TRK')],[Markup.button.callback('🏠 ወደ ዋና ማውጫ','go_home')]])});
 });
